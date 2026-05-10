@@ -1,1 +1,2512 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+    <meta charset="UTF-8">
+    <title>RPG Battle</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --font-sans: system-ui, -apple-system, sans-serif;
+            --color-text-primary: #c8e0c8;
+            --color-border-secondary: #2a4a2a;
+            --border-radius-lg: 10px;
+            --border-radius-md: 6px
+        }
+
+        body {
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 12px
+        }
+
+        #root {
+            font-family: var(--font-sans);
+            font-size: 13px;
+            color: var(--color-text-primary);
+            width: 100%;
+            max-width: 800px
+        }
+
+        .battle-wrap {
+            background: #2d4a2d;
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            border: 0.5px solid var(--color-border-secondary)
+        }
+
+        .action-reel {
+            background: #1a2e1a;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border-bottom: 0.5px solid #1a1a1a;
+            overflow-x: auto
+        }
+
+        .reel-label {
+            font-size: 10px;
+            color: #7a9a7a;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            white-space: nowrap;
+            margin-right: 4px;
+            flex-shrink: 0
+        }
+
+        .round-badge {
+            font-size: 10px;
+            color: #f0c040;
+            background: rgba(240, 192, 64, 0.12);
+            border: 0.5px solid rgba(240, 192, 64, 0.3);
+            border-radius: 4px;
+            padding: 2px 7px;
+            margin-left: 6px;
+            flex-shrink: 0
+        }
+
+        .reel-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            min-width: 44px;
+            flex-shrink: 0
+        }
+
+        /* ICON UPDATES */
+        .reel-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #2a4a2a;
+            border: 1.5px solid #3a5a3a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #cce0cc;
+            overflow: hidden; /* Ensure image fits round container */
+        }
+
+        .reel-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .reel-name {
+            font-size: 9px;
+            color: #8aaa8a;
+            text-align: center;
+            max-width: 44px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap
+        }
+
+        .reel-divider {
+            width: 0.5px;
+            height: 28px;
+            background: #2a4a2a;
+            margin: 0 2px;
+            flex-shrink: 0
+        }
+
+        .battle-field {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            min-height: 220px;
+            position: relative
+        }
+
+        .party-side {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1
+        }
+
+        .char-sprite {
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .sprite-icon {
+            width: 36px;
+            height: 44px;
+            border-radius: 4px;
+            background: #1a3a1a;
+            border: 0.5px solid #2a5a2a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .sprite-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .sprite-icon.ko {
+            opacity: 0.3;
+            filter: grayscale(1)
+        }
+
+        .sprite-icon.active-spr {
+            border: 1.5px solid #f0c040
+        }
+
+        .char-tag {
+            background: rgba(0, 0, 0, 0.55);
+            border-radius: 4px;
+            padding: 3px 7px;
+            min-width: 100px
+        }
+
+        .char-tag-name {
+            font-size: 11px;
+            font-weight: 500;
+            color: #e8f4e8;
+            margin-bottom: 2px;
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap;
+            align-items: center
+        }
+
+        .status-pip {
+            font-size: 9px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #aaa
+        }
+
+        .pip-taunt  { color: #e87070 }
+        .pip-burn   { color: #ff6a00 }
+        .pip-wait   { color: #7a9a7a }
+        .pip-crit   { color: #f0c040 }
+        .pip-defend { color: #5590d8 }
+
+        /* Stat buff pips — positive */
+        .pip-atk    { color: #e05050 }
+        .pip-mag    { color: #b070e0 }
+        .pip-def    { color: #5590d8 }
+        .pip-mdef   { color: #50b870 }
+        .pip-spd    { color: #f0c040 }
+
+        /* Stat debuff pips — negative (darker/muted) */
+        .pip-atk-down  { color: #a03838 }
+        .pip-mag-down  { color: #7a4aa0 }
+        .pip-def-down  { color: #3a6090 }
+        .pip-mdef-down { color: #387a50 }
+        .pip-spd-down  { color: #a08828 }
+        .pip-eva       { color: #9a9a9a }
+        .pip-eva-down  { color: #666666 }
+
+        .mini-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 1px
+        }
+
+        .mini-bar-label {
+            font-size: 9px;
+            width: 14px;
+            flex-shrink: 0
+        }
+
+        .hp-label {
+            color: #5dcaa5
+        }
+
+        .sp-label {
+            color: #378add
+        }
+
+        .mini-bar-track {
+            flex: 1;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 3px;
+            overflow: hidden
+        }
+
+        .mini-bar-fill-hp {
+            height: 100%;
+            border-radius: 3px;
+            transition: width .3s
+        }
+
+        .mini-bar-fill-sp {
+            height: 100%;
+            background: #378add;
+            border-radius: 3px;
+            transition: width .3s
+        }
+
+        .mini-val {
+            font-size: 9px;
+            color: #aaccaa;
+            width: 52px;
+            text-align: right;
+            flex-shrink: 0
+        }
+
+        .enemy-side {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            align-items: flex-end
+        }
+
+        .enemy-unit {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .enemy-sprite {
+            width: 60px;
+            height: 48px;
+            border-radius: 6px;
+            background: #3a1a1a;
+            border: 0.5px solid #5a2a2a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            overflow: hidden;
+        }
+
+        .enemy-sprite img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .enemy-sprite.ko {
+            opacity: 0.3;
+            filter: grayscale(1)
+        }
+
+        .enemy-info {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            align-items: flex-end
+        }
+
+        .enemy-name {
+            font-size: 10px;
+            color: #e8c8c8
+        }
+
+        .enemy-hp-track {
+            width: 80px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 3px;
+            overflow: hidden
+        }
+
+        .enemy-hp-fill {
+            height: 100%;
+            background: #e24b4a;
+            border-radius: 3px;
+            transition: width .3s
+        }
+
+        .enemy-hp-pct {
+            font-size: 9px;
+            color: #cc8888
+        }
+
+        .battle-log-wrap {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 190px;
+            pointer-events: none
+        }
+
+        .battle-log {
+            background: rgba(0, 0, 0, 0.55);
+            border-radius: var(--border-radius-md);
+            padding: 7px 10px;
+            font-size: 11px;
+            color: #c8dcc8;
+            line-height: 1.5;
+            border: 0.5px solid rgba(255, 255, 255, 0.08);
+            text-align: center
+        }
+
+        .status-bar {
+            background: #1a2e1a;
+            border-top: 0.5px solid #1a1a1a;
+            padding: 8px 10px;
+            display: flex;
+            gap: 6px
+        }
+
+        .char-status-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 0.5px solid #2a4a2a;
+            border-radius: var(--border-radius-md);
+            padding: 6px 8px;
+            flex: 1;
+            min-width: 0;
+            transition: border-color .2s
+        }
+
+        .char-status-card.active-turn {
+            border-color: #f0c040
+        }
+
+        .char-status-card.ko {
+            opacity: 0.4
+        }
+
+        .csc-name {
+            font-size: 10px;
+            font-weight: 500;
+            color: #e8f4e8;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .csc-name img {
+            width: 14px;
+            height: 14px;
+            object-fit: contain;
+        }
+
+        .csc-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 3px
+        }
+
+        .csc-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 4px
+        }
+
+        .csc-lbl {
+            font-size: 9px;
+            width: 14px;
+            flex-shrink: 0
+        }
+
+        .csc-track {
+            flex: 1;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            min-width: 0
+        }
+
+        .csc-fill-hp {
+            height: 100%;
+            border-radius: 3px;
+            transition: width .3s
+        }
+
+        .csc-fill-sp {
+            height: 100%;
+            background: #378add;
+            border-radius: 3px;
+            transition: width .3s
+        }
+
+        .csc-val {
+            font-size: 9px;
+            color: #aaccaa;
+            min-width: 44px;
+            text-align: right;
+            flex-shrink: 0
+        }
+
+        .action-panel {
+            padding: 10px 12px;
+            background: #1a2e1a;
+            border-top: 0.5px solid #1a1a1a;
+            min-height: 90px
+        }
+
+        .ap-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 7px
+        }
+
+        .action-panel-title {
+            font-size: 10px;
+            color: #7a9a7a;
+            text-transform: uppercase;
+            letter-spacing: .06em
+        }
+
+        .breadcrumb {
+            font-size: 10px;
+            color: #5a7a5a;
+            cursor: pointer;
+            user-select: none
+        }
+
+        .breadcrumb:hover {
+            color: #8aaa8a
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap
+        }
+
+        .act-btn {
+            background: rgba(0, 0, 0, 0.45);
+            border: 0.5px solid #3a5a3a;
+            border-radius: var(--border-radius-md);
+            padding: 5px 11px;
+            font-size: 12px;
+            color: #c8e0c8;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            transition: background .15s;
+            white-space: nowrap
+        }
+
+        .act-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #5a8a5a
+        }
+
+        .act-btn.disabled {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none
+        }
+
+        .act-btn.danger {
+            border-color: #5a2a2a;
+            color: #e8a8a8
+        }
+
+        .act-btn.danger:hover {
+            background: rgba(200, 60, 60, 0.15)
+        }
+
+        .submenu {
+            background: #101e10;
+            border: 0.5px solid #2a4a2a;
+            border-radius: var(--border-radius-md);
+            padding: 8px;
+            margin-top: 8px;
+            max-height: 180px;
+            overflow-y: auto
+        }
+
+        .submenu-title {
+            font-size: 10px;
+            color: #7a9a7a;
+            margin-bottom: 6px
+        }
+
+        .skill-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap
+        }
+
+        .skill-btn {
+            background: rgba(0, 0, 0, 0.4);
+            border: 0.5px solid #2a3a2a;
+            border-radius: 4px;
+            padding: 5px 9px;
+            font-size: 11px;
+            color: #c8dcc8;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            line-height: 1.4;
+            text-align: left
+        }
+
+        .skill-btn:hover {
+            background: rgba(255, 255, 255, 0.07)
+        }
+
+        .skill-btn.no-sp {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none
+        }
+
+        .skill-btn.locked {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none;
+            border-style: dashed
+        }
+
+        .skill-meta {
+            display: flex;
+            gap: 5px;
+            margin-top: 2px;
+            align-items: center;
+            flex-wrap: wrap
+        }
+
+        .skill-pow {
+            color: #f0c040;
+            font-size: 9px
+        }
+
+        .skill-cost {
+            color: #378add;
+            font-size: 9px
+        }
+
+        .skill-type-phys {
+            color: #ef9f27;
+            font-size: 9px
+        }
+
+        .skill-type-spell {
+            color: #85b7eb;
+            font-size: 9px
+        }
+
+        .skill-type-status {
+            color: #9fe1cb;
+            font-size: 9px
+        }
+
+        .tgt-btn {
+            background: rgba(200, 80, 80, 0.15);
+            border: 0.5px solid #5a2a2a;
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-size: 11px;
+            color: #e8b8b8;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .tgt-btn img {
+            width: 14px;
+            height: 14px;
+            object-fit: contain;
+        }
+
+        .tgt-btn:hover {
+            background: rgba(200, 80, 80, 0.28)
+        }
+
+        .tgt-btn-ally {
+            background: rgba(80, 160, 80, 0.15);
+            border: 0.5px solid #2a5a2a;
+            color: #b8e8b8
+        }
+
+        .tgt-btn-ally:hover {
+            background: rgba(80, 160, 80, 0.28)
+        }
+
+        .swap-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-top: 4px
+        }
+
+        .swap-btn {
+            background: rgba(0, 0, 0, 0.4);
+            border: 0.5px solid #2a4a2a;
+            border-radius: var(--border-radius-md);
+            padding: 5px 8px;
+            font-size: 11px;
+            color: #c8e0c8;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .swap-btn-top {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .swap-btn img {
+            width: 14px;
+            height: 14px;
+            object-fit: contain;
+        }
+
+        .swap-btn:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: #5a8a5a
+        }
+
+        .swap-btn.cant {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none
+        }
+
+        .swap-section-label {
+            font-size: 9px;
+            color: #5a7a5a;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            margin: 4px 0 2px;
+            grid-column: 1/-1
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px
+        }
+
+        .info-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 0.5px solid #2a4a2a;
+            border-radius: var(--border-radius-md);
+            padding: 5px 8px;
+            font-size: 10px
+        }
+
+        .info-card.bench-card {
+            border-style: dashed;
+            opacity: 0.75
+        }
+
+        .info-card-name {
+            font-weight: 500;
+            color: #e8f4e8;
+            margin-bottom: 3px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .info-card-name img {
+            width: 14px;
+            height: 14px;
+            object-fit: contain;
+        }
+
+        .info-stat-row {
+            display: flex;
+            justify-content: space-between;
+            color: #8aaa8a;
+            margin-bottom: 1px
+        }
+
+        .info-stat-val {
+            color: #c8dcc8
+        }
+
+        .dmg-flash {
+            animation: flash .35s ease
+        }
+
+        @keyframes flash {
+            0% { opacity: 1 }
+            35% { opacity: 0.1 }
+            100% { opacity: 1 }
+        }
+
+        /* ── PARTY SELECT SCREEN ── */
+        #party-select-screen {
+            background: #2d4a2d;
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            border: 0.5px solid var(--color-border-secondary);
+        }
+
+        .ps-header {
+            background: #1a2e1a;
+            padding: 10px 14px;
+            border-bottom: 0.5px solid #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ps-title {
+            font-size: 11px;
+            color: #7a9a7a;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
+
+        .ps-reset-btn {
+            background: rgba(0,0,0,0.4);
+            border: 0.5px solid #3a3a2a;
+            border-radius: var(--border-radius-md);
+            padding: 3px 10px;
+            font-size: 11px;
+            color: #c8c890;
+            cursor: pointer;
+            font-family: var(--font-sans);
+        }
+
+        .ps-reset-btn:hover { background: rgba(255,255,255,0.07); border-color: #6a6a3a; }
+        .ps-reset-btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+
+        .ps-slots {
+            display: flex;
+            gap: 8px;
+            padding: 12px 14px;
+            background: #243a24;
+            border-bottom: 0.5px solid #1a1a1a;
+        }
+
+        .ps-slot {
+            flex: 1;
+            background: rgba(0,0,0,0.35);
+            border: 0.5px dashed #3a5a3a;
+            border-radius: var(--border-radius-md);
+            padding: 8px 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            min-height: 72px;
+            justify-content: center;
+        }
+
+        .ps-slot.filled {
+            border-style: solid;
+            border-color: #4a7a4a;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .ps-slot-num {
+            font-size: 9px;
+            color: #4a6a4a;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        .ps-slot-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #1a3a1a;
+            border: 0.5px solid #2a5a2a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            overflow: hidden;
+        }
+
+        .ps-slot-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .ps-slot-name {
+            font-size: 10px;
+            color: #c8e0c8;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .ps-slot-empty-label {
+            font-size: 10px;
+            color: #3a5a3a;
+        }
+
+        .ps-roster {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 12px 14px;
+        }
+
+        .ps-char-card {
+            background: rgba(0,0,0,0.4);
+            border: 0.5px solid #2a4a2a;
+            border-radius: var(--border-radius-md);
+            padding: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: background .15s, border-color .15s;
+            text-align: center;
+        }
+
+        .ps-char-card:hover:not(.selected):not(.disabled) {
+            background: rgba(255,255,255,0.06);
+            border-color: #4a7a4a;
+        }
+
+        .ps-char-card.selected {
+            border-color: #f0c040;
+            background: rgba(240,192,64,0.08);
+            cursor: default;
+        }
+
+        .ps-char-card.disabled {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .ps-char-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #1a3a1a;
+            border: 0.5px solid #2a5a2a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .ps-char-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .ps-char-name {
+            font-size: 11px;
+            font-weight: 500;
+            color: #e8f4e8;
+        }
+
+        .ps-char-cls {
+            font-size: 9px;
+            color: #5a7a5a;
+        }
+
+        .ps-char-slot-badge {
+            font-size: 9px;
+            background: rgba(240,192,64,0.15);
+            color: #f0c040;
+            border-radius: 3px;
+            padding: 1px 5px;
+        }
+
+        .ps-footer {
+            background: #1a2e1a;
+            padding: 10px 14px;
+            border-top: 0.5px solid #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ps-progress {
+            font-size: 11px;
+            color: #5a7a5a;
+        }
+
+        .ps-progress span {
+            color: #f0c040;
+            font-weight: 500;
+        }
+
+        .ps-start-btn {
+            background: #2a5a2a;
+            border: 0.5px solid #4a8a4a;
+            border-radius: var(--border-radius-md);
+            padding: 6px 18px;
+            font-size: 12px;
+            color: #c8e8c8;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            transition: background .15s;
+        }
+
+        .ps-start-btn:hover:not(:disabled) { background: #3a6a3a; }
+        .ps-start-btn:disabled { opacity: 0.35; cursor: default; }
+
+        /* ── SCENARIO SELECT SCREEN ── */
+        #scenario-select-screen {
+            background: #2d4a2d;
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            border: 0.5px solid var(--color-border-secondary);
+        }
+        .ss-header {
+            background: #1a2e1a;
+            padding: 10px 14px;
+            border-bottom: 0.5px solid #1a1a1a;
+        }
+        .ss-title { font-size: 11px; color: #7a9a7a; text-transform: uppercase; letter-spacing: .06em; }
+        .ss-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; }
+        .ss-card {
+            background: rgba(0,0,0,0.4); border: 0.5px solid #2a4a2a;
+            border-radius: var(--border-radius-md); padding: 12px;
+            cursor: pointer; transition: background .15s, border-color .15s;
+        }
+        .ss-card:hover { background: rgba(255,255,255,0.06); border-color: #4a7a4a; }
+        .ss-card-title { font-size: 13px; font-weight: 500; color: #e8f4e8; margin-bottom: 3px; }
+        .ss-card-sub { font-size: 10px; color: #5a7a5a; margin-bottom: 10px; }
+        .ss-enemy-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+        .ss-enemy-chip {
+            background: rgba(0,0,0,0.35); border: 0.5px solid #3a2a2a;
+            border-radius: 4px; padding: 4px 8px; font-size: 10px; color: #e8c8c8;
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .ss-enemy-chip-name { font-weight: 500; }
+        .ss-enemy-chip-stats { color: #8a6a6a; font-size: 9px; }
+        .ss-special-label { font-size: 9px; color: #7a9a7a; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+        .ss-special-desc { font-size: 10px; color: #8aaa8a; line-height: 1.4; }
+        .ss-select-btn {
+            margin-top: 10px; width: 100%; background: #1a3a1a;
+            border: 0.5px solid #3a6a3a; border-radius: var(--border-radius-md);
+            padding: 6px; font-size: 11px; color: #c8e8c8;
+            cursor: pointer; font-family: var(--font-sans); transition: background .15s;
+        }
+        .ss-select-btn:hover { background: #2a4a2a; }
+    </style>
+</head>
+
+<body>
+    <div id="root">
+
+        <!-- SCENARIO SELECT SCREEN -->
+        <div id="scenario-select-screen">
+            <div class="ss-header">
+                <span class="ss-title">Choose your scenario</span>
+            </div>
+            <div class="ss-cards">
+                <div class="ss-card" onclick="selectScenario('thornbacks')">
+                    <div class="ss-card-title">The Thornbacks</div>
+                    <div class="ss-card-sub">2 enemies · Physical focus</div>
+                    <div class="ss-enemy-row">
+                        <div class="ss-enemy-chip">
+                            <span class="ss-enemy-chip-name">🦎 Thornback ×2</span>
+                            <span class="ss-enemy-chip-stats">380 HP · ATK 14 · DEF 10 · SPD 11/8</span>
+                        </div>
+                    </div>
+                    <div class="ss-special-label">Special ability</div>
+                    <div class="ss-special-desc"><strong>Head Bash</strong> (30%) — POW 110 Physical. Self-inflicts ATK −1 after use.</div>
+                    <button class="ss-select-btn">Select →</button>
+                </div>
+                <div class="ss-card" onclick="selectScenario('cult')">
+                    <div class="ss-card-title">Cult Followers</div>
+                    <div class="ss-card-sub">3 enemies · Magic focus</div>
+                    <div class="ss-enemy-row">
+                        <div class="ss-enemy-chip">
+                            <span class="ss-enemy-chip-name">🕯️ Cult Follower ×3</span>
+                            <span class="ss-enemy-chip-stats">240 HP · MAG 16 · MDEF 18 · SPD 13/10/7</span>
+                        </div>
+                    </div>
+                    <div class="ss-special-label">Special ability</div>
+                    <div class="ss-special-desc"><strong>Shooting Stars</strong> (20%) — POW 65 Spell. Strikes all party members.</div>
+                    <button class="ss-select-btn">Select →</button>
+                </div>
+                <div class="ss-card" onclick="selectScenario('dusty_duo')" style="grid-column:1/-1;border-color:#3a4a5a;background:rgba(10,20,40,0.35)">
+                    <div class="ss-card-title" style="color:#a0c8e8">🦊 The Dusty Duo</div>
+                    <div class="ss-card-sub" style="color:#4a6a7a">2 enemies · High synergy · Reynard acts first every round</div>
+                    <div class="ss-enemy-row">
+                        <div class="ss-enemy-chip" style="border-color:#3a5a6a;flex:1">
+                            <span class="ss-enemy-chip-name" style="color:#a0c8e8"><img src="assets/Reynard.png" style="width:14px;height:14px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:3px">Reynard</span>
+                            <span class="ss-enemy-chip-stats">500 HP · ATK 23 · DEF 10 · SPD 31 · EVA 20</span>
+                        </div>
+                        <div class="ss-enemy-chip" style="border-color:#3a5a6a;flex:1">
+                            <span class="ss-enemy-chip-name" style="color:#a0c8e8"><img src="assets/Flynn.png" style="width:14px;height:14px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:3px">Flynn</span>
+                            <span class="ss-enemy-chip-stats">800 HP · MAG 25 · DEF 20 · SPD 11</span>
+                        </div>
+                    </div>
+                    <div class="ss-special-label">Enemy abilities</div>
+                    <div class="ss-special-desc">
+                        <strong>Reynard:</strong> <strong>Smoke Bomb</strong> — EVA+1 all allies for 1 round &nbsp;·&nbsp;
+                        <strong>After You</strong> — Grants Flynn 2 actions this turn + MAG+1 for 1 round &nbsp;·&nbsp;
+                        <strong>Flurry</strong> — POW 25 Dagger, 3–7 random hits &nbsp;·&nbsp;
+                        <strong>Flynn:</strong> <strong>Taunt</strong> — Self Taunt 3 rounds &nbsp;·&nbsp;
+                        <strong>Magical Breath</strong> — Self MAG+1 &amp; MDEF+1 for 2 rounds &nbsp;·&nbsp;
+                        <strong>Dirty Dan</strong> — POW 120 Earth spell, uses lower of target DEF/MDEF
+                    </div>
+                    <button class="ss-select-btn" style="border-color:#3a5a6a;color:#a0c8e8">Select → (Hard)</button>
+                </div>
+                <div class="ss-card" onclick="selectScenario('boss')" style="grid-column:1/-1;border-color:#5a3a2a;background:rgba(60,20,10,0.35)">
+                    <div class="ss-card-title" style="color:#e8c090">⚔️ Boss Battle — Mare Dragon</div>
+                    <div class="ss-card-sub" style="color:#7a5a3a">3 enemies · Mixed · 2 actions per round for the boss</div>
+                    <div class="ss-enemy-row">
+                        <div class="ss-enemy-chip" style="border-color:#6a3a1a;flex:1">
+                            <span class="ss-enemy-chip-name" style="color:#e8c090">🐉 Mare Dragon</span>
+                            <span class="ss-enemy-chip-stats">1200 HP · ATK 24 · MAG 22 · DEF 20 · MDEF 20 · SPD 14 · 2 Actions</span>
+                        </div>
+                        <div class="ss-enemy-chip">
+                            <span class="ss-enemy-chip-name">🦎 Thornback</span>
+                            <span class="ss-enemy-chip-stats">280 HP · SPD 11</span>
+                        </div>
+                        <div class="ss-enemy-chip">
+                            <span class="ss-enemy-chip-name">🕯️ Cult Follower</span>
+                            <span class="ss-enemy-chip-stats">180 HP · SPD 10</span>
+                        </div>
+                    </div>
+                    <div class="ss-special-label">Boss abilities (random)</div>
+                    <div class="ss-special-desc">
+                        <strong>Attack</strong> (35%) — Physical, single target &nbsp;·&nbsp;
+                        <strong>Miasma Breath</strong> (30%) — POW 70 Spell, DEF/MDEF −1 for 1 round &nbsp;·&nbsp;
+                        <strong>Dragonskin</strong> (15%) — Self ATK+1 & DEF+1, max +2 &nbsp;·&nbsp;
+                        <strong>Tail Sweep</strong> (20%) — POW 80 Physical, hits all
+                    </div>
+                    <button class="ss-select-btn" style="border-color:#6a4a2a;color:#e8c090">Select → (Challenging)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PARTY SELECT SCREEN -->
+        <div id="party-select-screen" style="display:none">
+            <div class="ps-header">
+                <span class="ps-title">Choose your party</span>
+                <button class="ps-reset-btn" id="ps-reset-btn" onclick="resetSelection()" disabled>Reset selection</button>
+            </div>
+
+            <!-- Selected slots row -->
+            <div class="ps-slots" id="ps-slots">
+                <div class="ps-slot" id="ps-slot-0"><span class="ps-slot-num">Slot 1</span><span class="ps-slot-empty-label">Empty</span></div>
+                <div class="ps-slot" id="ps-slot-1"><span class="ps-slot-num">Slot 2</span><span class="ps-slot-empty-label">Empty</span></div>
+                <div class="ps-slot" id="ps-slot-2"><span class="ps-slot-num">Slot 3</span><span class="ps-slot-empty-label">Empty</span></div>
+                <div class="ps-slot" id="ps-slot-3"><span class="ps-slot-num">Slot 4</span><span class="ps-slot-empty-label">Empty</span></div>
+            </div>
+
+            <!-- Character roster grid -->
+            <div class="ps-roster" id="ps-roster"></div>
+
+            <div class="ps-footer">
+                <div class="ps-progress" id="ps-progress">Selected <span id="ps-count">0</span> of 4</div>
+                <button class="ps-start-btn" id="ps-start-btn" disabled onclick="startBattle()">Start Battle</button>
+            </div>
+        </div>
+
+        <div class="battle-wrap" id="battle-wrap" style="display:none">
+            <div class="action-reel">
+                <span class="reel-label">Turn order</span>
+                <div id="reel-slots" style="display:flex;gap:4px;align-items:center;flex-shrink:0"></div>
+                <span class="round-badge" id="round-badge">Round 1</span>
+            </div>
+            <div class="battle-field">
+                <div class="party-side" id="party-field"></div>
+                <div class="battle-log-wrap">
+                    <div class="battle-log" id="battle-log">A wild Thornback appears!</div>
+                </div>
+                <div class="enemy-side" id="enemy-field"></div>
+            </div>
+            <div class="status-bar" id="status-bar"></div>
+            <div class="action-panel" id="action-panel">
+                <div class="ap-top">
+                    <div class="action-panel-title" id="ap-title"></div>
+                    <div class="breadcrumb" id="ap-breadcrumb"></div>
+                </div>
+                <div class="action-btns" id="ap-btns"></div>
+                <div id="ap-sub"></div>
+            </div>
+        </div><!-- /.battle-wrap -->
+    </div><!-- /#root -->
+
+    <script>
+        const BUFF_MUL = { '-6': 0.33, '-5': 0.40, '-4': 0.50, '-3': 0.57, '-2': 0.67, '-1': 0.80, '0': 1.00, '1': 1.25, '2': 2.00, '3': 2.50, '4': 3.00, '5': 3.50, '6': 4.00 };
+        function buffMul(n) { return BUFF_MUL[String(Math.max(-6, Math.min(6, n)))] || 1; }
+
+        function calcDamage(offStat, offStk, defStat, defStk, pow, ignDef = false) {
+            const eo = Math.floor(offStat * buffMul(offStk));
+            const ed = ignDef ? 0 : Math.floor(defStat * buffMul(defStk));
+            const ps = Math.pow(pow / 50, 1.35);
+            const raw = Math.floor(eo * ps * 2.2);
+            const mit = ignDef ? raw : Math.floor(raw * (100 / (100 + ed)));
+            return Math.max(1, mit + Math.floor(mit * (Math.random() * 0.08 - 0.04)));
+        }
+        function calcHeal(mdef, stk, scale = 1.0) { return Math.max(1, Math.floor(mdef * buffMul(stk) * 3.5 * scale)); }
+
+        // Returns { mul, tag, hitWeak, hitResist } for a skill hitting an enemy based on weak/resist arrays
+        function getWRE(enemy, sk) {
+            const tags = [sk.element, sk.wtype].filter(Boolean);
+            if (!tags.length) return { mul: 1, tag: '', hitWeak: null, hitResist: null };
+            const weak   = enemy.weak   || [];
+            const resist = enemy.resist || [];
+            const weakMatch   = tags.find(t => weak.includes(t));
+            const resistMatch = tags.find(t => resist.includes(t));
+            if (weakMatch)   return { mul: 1.25, tag: ' ⚡WEAK',  hitWeak: weakMatch,   hitResist: null };
+            if (resistMatch) return { mul: 0.75, tag: ' 🛡RES',   hitWeak: null, hitResist: resistMatch };
+            return { mul: 1, tag: '', hitWeak: null, hitResist: null };
+        }
+
+        const RAW_CHARS = [
+            {
+                id: 'scranny', name: 'Scranny', cls: 'Thief', hp: 280, maxHp: 280, sp: 41, maxSp: 41, atk: 14, mag: 6, def: 9, mdef: 9, spd: 30, eva: 26, 
+                icon: 'assets/Scranny.png',
+                passives: ['red_smoke'],
+                weapons: [{ name: 'Trusty Knife', type: 'Dagger', bonus: { atk: 3, spd: 3 } }],
+                skills: [
+                    { id: 'burst_dagger', name: 'Burst Dagger', pow: 80, cost: 7, type: 'Physical', wtype: 'Dagger', desc: 'A powerful dagger attack against a single enemy.', target: 'enemy_single', weaponSkill: false },
+                    { id: 'scramble_rush', name: 'Scramble Rush', pow: 20, cost: 10, type: 'Physical', wtype: 'Dagger', desc: 'Attacks random opposing targets 2-5 times.', target: 'enemy_random_multi', weaponSkill: false },
+                    { id: 'thief_skill', name: 'Thief', pow: 0, cost: 10, type: 'Status', desc: 'Attempt to steal an item. High chance to fail.', target: 'enemy_single', isThief: true, weaponSkill: false },
+                    { id: 'velocity_break', name: 'Velocity Break', pow: 60, cost: 10, type: 'Physical', wtype: 'Dagger', desc: 'Damage calculated with Speed instead of Attack.', target: 'enemy_single', useSpd: true, weaponSkill: false },
+                    { id: 'burst_dagger_wep', name: 'Burst Dagger', pow: 80, cost: 7, type: 'Physical', wtype: 'Dagger', desc: 'A powerful dagger attack against a single enemy.', target: 'enemy_single', weaponSkill: true },
+                    { id: 'blue_smoke_dagger', name: 'Blue Smoke Dagger', pow: 30, cost: 8, type: 'Physical', wtype: 'Dagger', desc: 'A low-damage strike that coats the blade in blue smoke, reducing the target\'s Defense by 1 for 2 rounds.', target: 'enemy_single', defDebuff: true, defDebuffAmt: -1, defDebuffDur: 2, weaponSkill: true },
+                ]
+            },
+            {
+                id: 'raz', name: 'Raz', cls: 'Tank', hp: 410, maxHp: 410, sp: 38, maxSp: 38, atk: 21, mag: 3, def: 25, mdef: 12, spd: 5, eva: 14, 
+                icon: 'assets/Raz.png',
+                passives: ['attention_rake'],
+                weapons: [{ name: "Farmer's Axe", type: 'Axe', bonus: { atk: 4, spd: -1 } }],
+                skills: [
+                    { id: 'cleave', name: 'Cleave', pow: 110, cost: 10, type: 'Physical', wtype: 'Axe', desc: 'A powerful strike that is not very accurate.', target: 'enemy_single', lowAcc: true, weaponSkill: false },
+                    { id: 'taunt_raz', name: 'Taunt', pow: 0, cost: 6, type: 'Status', desc: 'Grants self Taunt status for 3 rounds.', target: 'self', buffKey: 'taunt', buffDur: 3, weaponSkill: false },
+                    { id: 'blue_breath', name: 'Blue Breath', pow: 0, cost: 10, type: 'Status', desc: 'Grant self +1 Defense for 2 rounds.', target: 'self', buffKey: 'def', buffAmt: 1, buffDur: 2, weaponSkill: false },
+                    { id: 'burst_axe', name: 'Burst Axe', pow: 80, cost: 7, type: 'Physical', wtype: 'Axe', desc: 'A powerful axe attack against a single enemy.', target: 'enemy_single', weaponSkill: true },
+                ]
+            },
+            {
+                id: 'brio', name: 'Brio', cls: 'Mage', hp: 250, maxHp: 250, sp: 65, maxSp: 65, atk: 5, mag: 28, def: 7, mdef: 22, spd: 19, eva: 9, icon: 'assets/Brio.png',
+                passives: ['analytic'],
+                weapons: [{ name: "Brio's Brush", type: 'Tome', bonus: { mag: 2 } }],
+                skills: [
+                    { id: 'fireball_brio', name: 'Fireball', pow: 65, cost: 6, type: 'Spell', element: 'Fire', desc: 'A basic Fire spell against a single target.', target: 'enemy_single', weaponSkill: false },
+                    { id: 'chill_brio', name: 'Chill', pow: 65, cost: 6, type: 'Spell', element: 'Ice', desc: 'A basic Ice spell against a single target.', target: 'enemy_single', weaponSkill: false },
+                    { id: 'tower_of_flame', name: 'Tower of Flame', pow: 90, cost: 14, type: 'Spell', element: 'Fire', desc: 'A strong Fire spell. 10% chance of Burn for 3 rounds.', target: 'enemy_single', burnChance: 0.10, burnDur: 3, weaponSkill: false },
+                    { id: 'rainbow_barrier', name: 'Rainbow Barrier', pow: 0, cost: 20, type: 'Status', desc: 'Grant a single ally +1 Def/M.Def for 3 rounds.', target: 'ally_single', buffKey: 'def_mdef', buffAmt: 1, buffDur: 3, weaponSkill: true },
+                    { id: 'supernova', name: 'Supernova', pow: 70, cost: 12, type: 'Spell', element: 'Anima', desc: 'An Anima spell that hits all opposing targets.', target: 'enemy_all', weaponSkill: true },
+                    { id: 'brios_brush_wep', name: "Brio's Brush", pow: 0, cost: 0, type: 'Status', desc: '(Weapon passive)', target: 'self', weaponSkill: true, noOp: true },
+                ]
+            },
+            {
+                id: 'wedge', name: 'Wedge', cls: 'Fighter', hp: 250, maxHp: 250, sp: 60, maxSp: 60, atk: 26, mag: 4, def: 18, mdef: 8, spd: 23, eva: 12, icon: 'assets/Wedge.png',
+                passives: ['counterattack', 'blue_smoke'],
+                weapons: [],
+                skills: [
+                    { id: 'karate_chop', name: 'Karate Chop', pow: 60, cost: 10, type: 'Physical', wtype: 'Fists', ignDef: true, desc: "Strike a single enemy. Ignore the target's Defense stat.", target: 'enemy_single', weaponSkill: false },
+                    { id: 'karate_combo', name: 'Karate Combo', pow: 15, cost: 11, type: 'Physical', wtype: 'Fists', desc: 'Attacks a single target 2-5 times.', target: 'enemy_single_multi', weaponSkill: false },
+                    { id: 'red_breath', name: 'Red Breath', pow: 0, cost: 10, type: 'Status', desc: 'Grant self +1 Attack for 2 rounds.', target: 'self', buffKey: 'atk', buffAmt: 1, buffDur: 2, weaponSkill: false },
+                    { id: 'deep_breath', name: 'Deep Breath', pow: 0, cost: 15, type: 'Status', desc: 'Clear all own buffs to restore HP. Fails if no buffs.', target: 'self', clearSelfBuffsHeal: true, weaponSkill: false },
+                ]
+            },
+            {
+                id: 'brandon', name: 'Brandon', cls: 'Apothecary', hp: 330, maxHp: 330, sp: 75, maxSp: 75, atk: 4, mag: 9, def: 14, mdef: 22, spd: 9, eva: 12, icon: 'assets/Brandon.png',
+                passives: ['share_of_spoils'],
+                weapons: [],
+                skills: [
+                    { id: 'clear_smoke', name: 'Clear Smoke', pow: 0, cost: 12, type: 'Status', desc: 'Clear all stat changes of your party.', target: 'party_all', clearAllBuffs: true, weaponSkill: false },
+                    { id: 'diversion', name: 'Diversion', pow: 0, cost: 8, type: 'Status', desc: 'Grant an ally Taunt status for 2 rounds.', target: 'ally_single', buffKey: 'taunt', buffDur: 2, weaponSkill: false },
+                    { id: 'first_aid', name: 'First Aid', pow: 0, cost: 10, type: 'Status', desc: 'Heal a single ally by a large amount.', target: 'ally_single', healScale: 1.4, weaponSkill: false },
+                    { id: 'green_smoke', name: 'Green Smoke Bomb', pow: 0, cost: 14, type: 'Status', desc: 'Release a cloud of green smoke that reduces all enemies\' Magic Defense by 1 for 2 rounds.', target: 'enemy_all', mdefDebuff: true, mdefDebuffAmt: -1, mdefDebuffDur: 2, weaponSkill: false },
+                ]
+            },
+            {
+                id: 'luchia', name: 'Luchia', cls: 'Swordswoman', hp: 275, maxHp: 275, sp: 30, maxSp: 30, atk: 23, mag: 12, def: 13, mdef: 9, spd: 25, eva: 30, icon: 'assets/Luchia.png',
+                passives: ['cessation'],
+                weapons: [{ name: 'Ruby Sword', type: 'Sword', bonus: { atk: 1, mag: 2 } }],
+                skills: [
+                    { id: 'quick_feet', name: 'Quick Feet', pow: 0, cost: 22, type: 'Status', desc: 'Perform 2 actions next round. Cannot stack.', target: 'self', quickFeet: true, nextRoundLockout: true, weaponSkill: false },
+                    { id: 'sweep', name: 'Sweep', pow: 50, cost: 10, type: 'Physical', wtype: 'Sword', desc: 'Hits all opposing targets.', target: 'enemy_all', weaponSkill: false },
+                    { id: 'pump_up', name: 'Pump Up', pow: 0, cost: 13, type: 'Status', desc: 'Next attack is a guaranteed Critical Hit.', target: 'self', grantCrit: true, weaponSkill: false },
+                    { id: 'guillotine', name: 'Guillotine', pow: 90, cost: 15, type: 'Physical', wtype: 'Sword', desc: 'A devastating strike that treats Attack as if doubled.', target: 'enemy_single', dblAtk: true, weaponSkill: false },
+                    { id: 'burst_sword', name: 'Burst Sword', pow: 80, cost: 7, type: 'Physical', wtype: 'Sword', desc: 'A powerful sword attack against a single enemy.', target: 'enemy_single', weaponSkill: true },
+                    { id: 'fireball_luchia', name: 'Fireball', pow: 65, cost: 6, type: 'Spell', element: 'Fire', desc: 'A basic Fire spell against a single target.', target: 'enemy_single', weaponSkill: true },
+                ]
+            },
+            {
+                id: 'grace', name: 'Grace', cls: 'Cleric', hp: 220, maxHp: 220, sp: 85, maxSp: 85, atk: 11, mag: 20, def: 7, mdef: 14, spd: 15, eva: 20, icon: 'assets/Grace.png',
+                passives: ['healing_respite'],
+                weapons: [{ name: 'Candelabra', type: 'Staff', bonus: { mag: 2 } }],
+                skills: [
+                    { id: 'panacea', name: 'Panacea', pow: 0, cost: 8, type: 'Status', desc: 'Heal all allies by a small amount.', target: 'ally_all', healScale: 0.6, weaponSkill: false },
+                    { id: 'chill_grace', name: 'Chill', pow: 65, cost: 6, type: 'Spell', element: 'Ice', desc: 'A basic Ice spell against a single target.', target: 'enemy_single', weaponSkill: false },
+                    { id: 'vivify', name: 'Vivify', pow: 0, cost: 20, type: 'Status', desc: 'Revive a fallen ally with 1HP.', target: 'ally_ko', revive: true, weaponSkill: false },
+                    { id: 'candelabra_wep', name: 'Candelabra', pow: 0, cost: 0, type: 'Status', desc: '(Weapon passive)', target: 'self', weaponSkill: true, noOp: true },
+                    { id: 'yellow_boost', name: 'Yellow Boost', pow: 0, cost: 10, type: 'Status', desc: 'Grant self or an ally +1 Speed for 2 rounds, increasing their turn order priority.', target: 'ally_single_or_self', buffKey: 'spd', buffAmt: 1, buffDur: 2, weaponSkill: true },
+                    { id: 'aura', name: 'Aura', pow: 65, cost: 6, type: 'Spell', element: 'Light', desc: 'A basic Light spell against a single target.', target: 'enemy_single', weaponSkill: true },
+                ]
+            },
+            {
+                id: 'maxmillian', name: 'Maxmillian', cls: 'Junkrat', hp: 260, maxHp: 260, sp: 63, maxSp: 63, atk: 16, mag: 13, def: 16, mdef: 13, spd: 15, eva: 15, icon: 'assets/Maxmillian.png',
+                passives: ['spirit_focus'],
+                weapons: [{ name: 'Javelin', type: 'Spear', bonus: { atk: 3, eva: -3 } }],
+                skills: [
+                    { id: 'burst_spear', name: 'Burst Spear', pow: 80, cost: 7, type: 'Physical', wtype: 'Spear', desc: 'A powerful spear attack against a single enemy.', target: 'enemy_single', weaponSkill: false },
+                    { id: 'thunderbolt', name: 'Thunderbolt', pow: 65, cost: 6, type: 'Spell', element: 'Thunder', desc: 'A basic Thunder spell against a single target.', target: 'enemy_single', weaponSkill: false },
+                    { id: 'blue_point', name: 'Blue Point', pow: 70, cost: 6, type: 'Physical', wtype: 'Spear', desc: 'Recover 25% of damage done as SP.', target: 'enemy_single', spDrain: 0.25, weaponSkill: false },
+                    { id: 'red_boost', name: 'Red Boost', pow: 0, cost: 10, type: 'Status', desc: 'Grant self or ally +1 Attack for 2 Rounds.', target: 'ally_single_or_self', buffKey: 'atk', buffAmt: 1, buffDur: 2, weaponSkill: false },
+                    { id: 'share_sp', name: 'Share SP', pow: 0, cost: 0, type: 'Status', desc: 'Remove 50% of current SP and share it with an ally.', target: 'ally_single', shareSP: true, weaponSkill: true },
+                    { id: 'javelin_volley', name: 'Volley', pow: 25, cost: 10, type: 'Physical', wtype: 'Spear', desc: 'Attacks random opposing targets 1-4 times.', target: 'enemy_random_multi', weaponSkill: true },
+                ]
+            },
+        ];
+
+        const SCENARIO_ENEMIES = {
+            thornbacks: [
+                { id: 'e1', name: 'Thornback', hp: 380, maxHp: 380, spd: 11, icon: '🦎', ko: false, atk: 14, def: 10, mdef: 8, weak: ['Ice'], resist: ['Sword'] },
+                { id: 'e2', name: 'Thornback', hp: 380, maxHp: 380, spd: 8,  icon: '🦎', ko: false, atk: 14, def: 10, mdef: 8, weak: ['Ice'], resist: ['Sword'] },
+            ],
+            cult: [
+                { id: 'e1', name: 'Cult Follower', hp: 240, maxHp: 240, spd: 13, icon: '🕯️', ko: false, atk: 6, def: 6, mdef: 18, mag: 16, weak: ['Axe'], resist: ['Light'] },
+                { id: 'e2', name: 'Cult Follower', hp: 240, maxHp: 240, spd: 10, icon: '🕯️', ko: false, atk: 6, def: 6, mdef: 18, mag: 16, weak: ['Axe'], resist: ['Light'] },
+                { id: 'e3', name: 'Cult Follower', hp: 240, maxHp: 240, spd: 7,  icon: '🕯️', ko: false, atk: 6, def: 6, mdef: 18, mag: 16, weak: ['Axe'], resist: ['Light'] },
+            ],
+            boss: [
+                { id: 'boss', name: 'Mare Dragon', hp: 1200, maxHp: 1200, spd: 14, icon: '🐉', ko: false, atk: 24, mag: 22, def: 20, mdef: 20, eva: 4, isBoss: true, dualAction: true, weak: ['Light'], resist: ['Dark', 'Spear'] },
+                { id: 'e2',   name: 'Thornback',   hp: 280,  maxHp: 280,  spd: 11, icon: '🦎', ko: false, atk: 14, def: 10, mdef: 8, weak: ['Ice'], resist: ['Sword'] },
+                { id: 'e3',   name: 'Cult Follower',hp: 180,  maxHp: 180,  spd: 10, icon: '🕯️', ko: false, atk: 6,  def: 6,  mdef: 18, mag: 16, weak: ['Axe'], resist: ['Light'] },
+            ],
+            dusty_duo: [
+                { id: 'reynard', name: 'Reynard', hp: 500, maxHp: 500, spd: 31, icon: 'assets/Reynard.png', ko: false, atk: 23, mag: 5,  def: 10, mdef: 10, eva: 20, weak: [], resist: ['Dagger', 'Sword', 'Axe'] },
+                { id: 'flynn',   name: 'Flynn',   hp: 800, maxHp: 800, spd: 11, icon: 'assets/Flynn.png', ko: false, atk: 17, mag: 25, def: 20, mdef: 13, eva: 3,  weak: [], resist: ['Fire', 'Thunder', 'Ice'] },
+            ],
+        };
+        let currentScenario = 'thornbacks';
+
+        function makeChar(base) {
+            const c = {
+                ...base, skills: base.skills.map(s => ({ ...s })), ko: false, defending: false,
+                waitingUntilNextRound: false, buffs: { atk: 0, def: 0, mag: 0, mdef: 0, spd: 0 }, buffTimers: {},
+                statusEffects: {}, nextRoundLockouts: {}, pendingExtraAction: false,
+                guaranteedCrit: false, tauntActive: false,
+                passives: base.passives || [],
+            };
+            (c.weapons || []).forEach(w => Object.entries(w.bonus || {}).forEach(([k, v]) => { c[k] = (c[k] || 0) + v; }));
+            return c;
+        }
+
+        function hasPassive(ch, id) { return (ch.passives || []).includes(id); }
+        // freshState defined below after party select logic
+        let S = null;
+
+        function buildQueue(st) {
+            const units = [];
+            st.field.filter(c => !c.ko && !c.waitingUntilNextRound).forEach(c => {
+                const effSpd = Math.floor(c.spd * buffMul(getStk(c, 'spd')));
+                units.push({ ...c, side: 'player', isBonus: false, spd: effSpd });
+                if (c.pendingExtraAction) units.push({ ...c, side: 'player', isBonus: true, spd: Math.floor(effSpd / 2) });
+            });
+            st.enemies.filter(e => !e.ko).forEach(e => {
+                const effSpd = Math.floor(e.spd * buffMul(getStk(e, 'spd')));
+                units.push({ ...e, side: 'enemy', isBonus: false, spd: effSpd });
+                if (e.dualAction) units.push({ ...e, side: 'enemy', isBonus: true, spd: Math.floor(effSpd / 2) });
+            });
+            units.sort((a, b) => b.spd - a.spd);
+            return units;
+        }
+
+        function hpColor(p) { return p > 0.5 ? '#1d9e75' : p > 0.25 ? '#ef9f27' : '#e24b4a'; }
+        function setLog(m) {
+            S.log = m; const el = document.getElementById('battle-log'); if (!el) return;
+            el.textContent = m; el.classList.remove('dmg-flash'); void el.offsetWidth; el.classList.add('dmg-flash');
+        }
+        function curUnit() { return S.queue[0] || null; }
+        function fieldIdx(id) { return S.field.findIndex(c => c.id === id); }
+        function fieldChar(id) { return S.field.find(c => c.id === id); }
+        function getStk(unit, key) { return (unit.buffs && unit.buffs[key]) || 0; }
+
+        function applyBuff(unit, key, amt, dur, isEnemy = false) {
+            const arr = isEnemy ? S.enemies : S.field;
+            const idx = isEnemy ? S.enemies.findIndex(e => e.id === unit.id) : fieldIdx(unit.id);
+            if (idx < 0) return;
+            const u = arr[idx];
+            if (key === 'taunt') {
+                S.field.forEach(c => { c.tauntActive = false; });
+                S.enemies.forEach(e => { e.tauntActive = false; });
+                u.tauntActive = true; u.buffTimers['taunt'] = { dur }; return;
+            }
+            if (key === 'def_mdef') {
+                u.buffs.def = Math.min(6, (u.buffs.def || 0) + amt);
+                u.buffs.mdef = Math.min(6, (u.buffs.mdef || 0) + amt);
+                u.buffTimers['def'] = { dur }; u.buffTimers['mdef'] = { dur }; return;
+            }
+            // For debuffs (amt < 0): don't stack the value if already applied, just refresh timer
+            if (amt < 0 && u.buffTimers[key]) {
+                u.buffTimers[key] = { dur };
+            } else {
+                u.buffs[key] = Math.min(6, Math.max(-6, (u.buffs[key] || 0) + amt));
+                u.buffTimers[key] = { dur };
+            }
+        }
+
+        function tickBuffs(unit) {
+            Object.keys(unit.buffTimers || {}).forEach(k => {
+                unit.buffTimers[k].dur--;
+                if (unit.buffTimers[k].dur <= 0) {
+                    delete unit.buffTimers[k];
+                    if (k === 'taunt') unit.tauntActive = false;
+                    else if (unit.buffs) unit.buffs[k] = 0;
+                }
+            });
+        }
+
+        function pips(c) {
+            let p = '';
+            if (c.tauntActive) p += `<span class="status-pip pip-taunt">TAUNT</span>`;
+            if (c.defending) p += `<span class="status-pip pip-defend">DEF+</span>`;
+            if (c.buffs && c.buffs.atk > 0)  p += `<span class="status-pip pip-atk">ATK+${c.buffs.atk}</span>`;
+            if (c.buffs && c.buffs.atk < 0)  p += `<span class="status-pip pip-atk-down">ATK${c.buffs.atk}</span>`;
+            if (c.buffs && c.buffs.mag > 0)  p += `<span class="status-pip pip-mag">MAG+${c.buffs.mag}</span>`;
+            if (c.buffs && c.buffs.mag < 0)  p += `<span class="status-pip pip-mag-down">MAG${c.buffs.mag}</span>`;
+            if (c.buffs && c.buffs.def > 0)  p += `<span class="status-pip pip-def">DEF+${c.buffs.def}</span>`;
+            if (c.buffs && c.buffs.def < 0)  p += `<span class="status-pip pip-def-down">DEF${c.buffs.def}</span>`;
+            if (c.buffs && c.buffs.mdef > 0) p += `<span class="status-pip pip-mdef">MDEF+${c.buffs.mdef}</span>`;
+            if (c.buffs && c.buffs.mdef < 0) p += `<span class="status-pip pip-mdef-down">MDEF${c.buffs.mdef}</span>`;
+            if (c.buffs && c.buffs.spd > 0)  p += `<span class="status-pip pip-spd">SPD+${c.buffs.spd}</span>`;
+            if (c.buffs && c.buffs.spd < 0)  p += `<span class="status-pip pip-spd-down">SPD${c.buffs.spd}</span>`;
+            if (c.buffs && c.buffs.eva > 0)  p += `<span class="status-pip pip-eva">EVA+${c.buffs.eva}</span>`;
+            if (c.buffs && c.buffs.eva < 0)  p += `<span class="status-pip pip-eva-down">EVA${c.buffs.eva}</span>`;
+            if (c.statusEffects && c.statusEffects.burn) p += `<span class="status-pip pip-burn">BURN</span>`;
+            if (c.waitingUntilNextRound) p += `<span class="status-pip pip-wait">WAIT</span>`;
+            if (c.guaranteedCrit) p += `<span class="status-pip pip-crit">CRIT+</span>`;
+            return p;
+        }
+
+        // UPDATE: Renders <img> for turn order
+        function renderReel() {
+            const el = document.getElementById('reel-slots'); const rb = document.getElementById('round-badge');
+            if (!el) return; el.innerHTML = ''; rb.textContent = `Round ${S.round}`;
+            S.queue.forEach((u, i) => {
+                const isE = u.side === 'enemy';
+                const d = document.createElement('div'); d.className = 'reel-slot';
+                const bS = i === 0 ? 'border:2px solid #f0c040;background:#3a3010' : '';
+                
+                // Content Switch
+                const iconHtml = u.icon.includes('/') ? `<img src="${u.icon}" alt="">` : u.icon || '?';
+                
+                d.innerHTML = `<div class="reel-avatar" style="${bS}">${iconHtml}</div><div class="reel-name" style="color:${isE ? '#cc8888' : '#8aaa8a'}">${u.isBonus ? u.name + '②' : u.name}</div>`;
+                el.appendChild(d);
+                if (i < S.queue.length - 1) { const dv = document.createElement('div'); dv.className = 'reel-divider'; el.appendChild(dv); }
+            });
+        }
+
+        // UPDATE: Renders <img> for battle sprites
+        function renderField() {
+            const pf = document.getElementById('party-field'); if (!pf) return;
+            const cur = curUnit(); pf.innerHTML = '';
+            S.field.forEach(c => {
+                const hpP = c.hp / c.maxHp, spP = c.sp / c.maxSp;
+                const isAct = cur && cur.id === c.id && cur.side === 'player';
+                const iconHtml = c.icon.includes('/') ? `<img src="${c.icon}" alt="">` : c.icon;
+                
+                pf.innerHTML += `<div class="char-sprite">
+      <div class="sprite-icon${c.ko ? ' ko' : ''}${isAct ? ' active-spr' : ''}">${iconHtml}</div>
+      <div class="char-tag">
+        <div class="char-tag-name">${c.name} ${pips(c)}</div>
+        <div class="mini-bar-row"><span class="mini-bar-label hp-label">HP</span><div class="mini-bar-track"><div class="mini-bar-fill-hp" style="width:${hpP * 100}%;background:${hpColor(hpP)}"></div></div><span class="mini-val">${c.hp}/${c.maxHp}</span></div>
+        <div class="mini-bar-row"><span class="mini-bar-label sp-label">SP</span><div class="mini-bar-track"><div class="mini-bar-fill-sp" style="width:${spP * 100}%"></div></div><span class="mini-val">${c.sp}/${c.maxSp}</span></div>
+      </div>
+    </div>`;
+            });
+            const ef = document.getElementById('enemy-field'); if (!ef) return; ef.innerHTML = '';
+            S.enemies.forEach(e => {
+                const hpP = e.hp / e.maxHp;
+                let ePips = e.tauntActive ? `<span class="status-pip pip-taunt" style="font-size:8px">TAUNT</span>` : '';
+                if (e.buffs && e.buffs.atk > 0)  ePips += `<span class="status-pip pip-atk" style="font-size:8px">ATK+${e.buffs.atk}</span>`;
+                if (e.buffs && e.buffs.atk < 0)  ePips += `<span class="status-pip pip-atk-down" style="font-size:8px">ATK${e.buffs.atk}</span>`;
+                if (e.buffs && e.buffs.mag > 0)  ePips += `<span class="status-pip pip-mag" style="font-size:8px">MAG+${e.buffs.mag}</span>`;
+                if (e.buffs && e.buffs.mag < 0)  ePips += `<span class="status-pip pip-mag-down" style="font-size:8px">MAG${e.buffs.mag}</span>`;
+                if (e.buffs && e.buffs.def > 0)  ePips += `<span class="status-pip pip-def" style="font-size:8px">DEF+${e.buffs.def}</span>`;
+                if (e.buffs && e.buffs.def < 0)  ePips += `<span class="status-pip pip-def-down" style="font-size:8px">DEF${e.buffs.def}</span>`;
+                if (e.buffs && e.buffs.mdef > 0) ePips += `<span class="status-pip pip-mdef" style="font-size:8px">MDEF+${e.buffs.mdef}</span>`;
+                if (e.buffs && e.buffs.mdef < 0) ePips += `<span class="status-pip pip-mdef-down" style="font-size:8px">MDEF${e.buffs.mdef}</span>`;
+                if (e.buffs && e.buffs.eva > 0)  ePips += `<span class="status-pip pip-eva" style="font-size:8px">EVA+${e.buffs.eva}</span>`;
+                if (e.buffs && e.buffs.eva < 0)  ePips += `<span class="status-pip pip-eva-down" style="font-size:8px">EVA${e.buffs.eva}</span>`;
+                const iconHtml = e.icon.includes('/') ? `<img src="${e.icon}" alt="">` : e.icon;
+                const isBoss = e.isBoss;
+                const hpBarW = isBoss ? '130px' : '80px';
+                const spriteW = isBoss ? '80px' : '60px';
+                const spriteH = isBoss ? '64px' : '48px';
+                const spriteFs = isBoss ? '36px' : '26px';
+                const weakPips   = (e.revealedWeak   || []).map(w => `<span class="status-pip" style="font-size:8px;color:#7dd87d">⚡${w}</span>`).join('');
+                const resistPips = (e.revealedResist || []).map(r => `<span class="status-pip" style="font-size:8px;color:#85b7eb">🛡${r}</span>`).join('');
+                
+                ef.innerHTML += `<div class="enemy-unit">
+      <div class="enemy-info">
+        <div class="enemy-name" style="${isBoss ? 'color:#e8c090;font-weight:500' : ''}">${e.name} ${ePips}</div>
+        <div class="enemy-hp-track" style="width:${hpBarW}"><div class="enemy-hp-fill" style="width:${hpP * 100}%;background:${isBoss ? '#c0402a' : '#e24b4a'}"></div></div>
+        <div class="enemy-hp-pct">${isBoss ? `${e.hp}/${e.maxHp} HP` : `${Math.round(hpP * 100)}% HP`}</div>
+        ${(weakPips || resistPips) ? `<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:2px">${weakPips}${resistPips}</div>` : ''}
+      </div>
+      <div class="enemy-sprite${e.ko ? ' ko' : ''}" style="width:${spriteW};height:${spriteH};font-size:${spriteFs};${isBoss ? 'border-color:#6a3a1a;background:#2a1008' : ''}">${iconHtml}</div>
+    </div>`;
+            });
+        }
+
+        // UPDATE: Renders <img> for bottom status bar
+        function renderStatusBar() {
+            const sb = document.getElementById('status-bar'); if (!sb) return;
+            const cur = curUnit(); sb.innerHTML = '';
+            S.field.forEach(c => {
+                const hpP = c.hp / c.maxHp, spP = c.sp / c.maxSp;
+                const isAct = cur && cur.id === c.id && cur.side === 'player';
+                const iconHtml = c.icon.includes('/') ? `<img src="${c.icon}" alt="">` : c.icon;
+
+                sb.innerHTML += `<div class="char-status-card${isAct ? ' active-turn' : ''}${c.ko ? ' ko' : ''}">
+      <div class="csc-name">${iconHtml} ${c.name}${c.ko ? '<span style="color:#e24b4a;font-size:9px;margin-left:3px">KO</span>' : ''}</div>
+      <div class="csc-bars">
+        <div class="csc-bar-row"><span class="csc-lbl hp-label">HP</span><div class="csc-track"><div class="csc-fill-hp" style="width:${hpP * 100}%;background:${hpColor(hpP)}"></div></div><span class="csc-val">${c.hp}/${c.maxHp}</span></div>
+        <div class="csc-bar-row"><span class="csc-lbl sp-label">SP</span><div class="csc-track"><div class="csc-fill-sp" style="width:${spP * 100}%"></div></div><span class="csc-val">${c.sp}/${c.maxSp}</span></div>
+      </div>
+    </div>`;
+            });
+        }
+
+        function renderAll() { renderReel(); renderField(); renderStatusBar(); }
+
+        function checkWin() {
+            if (S.enemies.every(e => e.ko)) { renderAll(); setLog('Victory! All enemies defeated!'); showEndPanel(true); return true; }
+            if (S.field.every(c => c.ko)) { renderAll(); setLog('Defeated... The party has fallen.'); showEndPanel(false); return true; }
+            return false;
+        }
+        function showEndPanel(win) {
+            document.getElementById('ap-title').textContent = win ? 'Victory!' : 'Defeated.';
+            document.getElementById('ap-breadcrumb').textContent = '';
+            document.getElementById('ap-btns').innerHTML = `<button class="act-btn" onclick="resetBattle()">Play again</button>`;
+            document.getElementById('ap-sub').innerHTML = '';
+        }
+
+        function advanceTurn() {
+            if (checkWin()) return;
+            const justActed = S.queue.shift();
+            if (justActed) {
+                S.actedThisRound = S.actedThisRound || new Set();
+                S.actedThisRound.add(justActed.id);
+            }
+            if (justActed && justActed.isBonus) {
+                const fi = fieldIdx(justActed.id);
+                if (fi >= 0) { S.field[fi].pendingExtraAction = false; if (S.field[fi].nextRoundLockouts) delete S.field[fi].nextRoundLockouts['quick_feet']; }
+            }
+            if (S.queue.length === 0) {
+                S.round++;
+                S.actedThisRound = new Set();
+                if (S.swapCooldownRounds > 0) S.swapCooldownRounds--;
+                S.field.forEach(c => { tickBuffs(c); });
+                S.enemies.forEach(e => { tickBuffs(e); });
+                S.field.forEach((c, i) => {
+                    if (c.statusEffects && c.statusEffects.burn) {
+                        const dmg = Math.max(1, Math.floor(c.maxHp * 0.05));
+                        S.field[i].hp = Math.max(0, c.hp - dmg);
+                        if (S.field[i].hp === 0) S.field[i].ko = true;
+                        S.field[i].statusEffects.burn.dur--;
+                        if (S.field[i].statusEffects.burn.dur <= 0) delete S.field[i].statusEffects.burn;
+                    }
+                });
+                S.field.forEach(c => {
+                    c.waitingUntilNextRound = false;
+                    c.defending = false;
+                    Object.keys(c.nextRoundLockouts || {}).forEach(k => {
+                        c.nextRoundLockouts[k]--;
+                        if (c.nextRoundLockouts[k] <= 0) delete c.nextRoundLockouts[k];
+                    });
+                    if (c.ko) { c.pendingExtraAction = false; }
+                });
+                S.queue = buildQueue(S);
+            }
+            renderAll();
+            const cur = S.queue[0];
+            if (!cur) return;
+            if (cur.side === 'enemy') {
+                // Bug fix: skip this queue entry if the enemy was KO'd since the queue was built
+                const liveEnemy = S.enemies.find(e => e.id === cur.id);
+                if (liveEnemy && liveEnemy.ko) { advanceTurn(); return; }
+                setTimeout(() => enemyTurn(cur), 400);
+            } else {
+                // Bug fix: skip this queue entry if the character was KO'd since the queue was built.
+                // Queue entries are spread-copies made when the character was alive; if they die
+                // mid-round (e.g. Raz killed by an enemy before his own turn), their remaining
+                // entries still fire. Without this guard, dead characters get a full action menu.
+                const liveChar = fieldChar(cur.id);
+                if (!liveChar || liveChar.ko) { advanceTurn(); return; }
+                showMainMenu();
+            }
+        }
+
+        // Applies enemy physical damage to a field character, then fires passives (Counterattack).
+        // Returns the actual dmg dealt. logFn is called with the damage for the caller's log message.
+        function applyEnemyPhysDmg(enemy, targetId, pow, extraDefBonus = 0) {
+            const fi = fieldIdx(targetId);
+            if (fi < 0) return 0;
+            const target = S.field[fi];
+            const defBonus = (target.defending ? 2 : 0) + extraDefBonus;
+            const dmg = calcDamage(enemy.atk, getStk(enemy, 'atk'), target.def, getStk(target, 'def') + defBonus, pow);
+            S.field[fi].hp = Math.max(0, target.hp - dmg);
+            if (S.field[fi].hp === 0) S.field[fi].ko = true;
+            // Counterattack (Wedge): 30% chance to retaliate with a normal attack on a physical hit
+            if (!S.field[fi].ko && hasPassive(S.field[fi], 'counterattack') && Math.random() < 0.30) {
+                const ei = S.enemies.findIndex(e => e.id === enemy.id);
+                if (ei >= 0 && !S.enemies[ei].ko) {
+                    const counterDmg = calcDamage(S.field[fi].atk, getStk(S.field[fi], 'atk'), enemy.def || 0, getStk(S.enemies[ei], 'def'), 50);
+                    S.enemies[ei].hp = Math.max(0, S.enemies[ei].hp - counterDmg);
+                    if (S.enemies[ei].hp === 0) S.enemies[ei].ko = true;
+                    setTimeout(() => setLog(`⚡ ${S.field[fi].name} counterattacks ${enemy.name} for ${counterDmg} dmg!`), 500);
+                }
+            }
+            return dmg;
+        }
+
+        function applyEnemyMagDmg(enemy, targetId, pow) {
+            const fi = fieldIdx(targetId);
+            if (fi < 0) return 0;
+            const target = S.field[fi];
+            const dmg = calcDamage(enemy.mag || 0, getStk(enemy, 'mag'), target.mdef, getStk(target, 'mdef'), pow);
+            S.field[fi].hp = Math.max(0, target.hp - dmg);
+            if (S.field[fi].hp === 0) S.field[fi].ko = true;
+            return dmg;
+        }
+
+        // Attention Rake: if Raz has Taunt active, he also receives AoE hits (at +25% damage)
+        function applyAttentionRake(enemy, aoeTargets, pow, logParts) {
+            const raz = S.field.find(c => hasPassive(c, 'attention_rake') && c.tauntActive && !c.ko);
+            if (!raz || aoeTargets.some(c => c.id === raz.id)) return; // already in the AoE targets
+            const fi = fieldIdx(raz.id);
+            const dmg = Math.floor(applyEnemyPhysDmg(enemy, raz.id, pow) * 1.25);
+            // Override: re-apply the 25% penalty on top (applyEnemyPhysDmg already dealt base; we need to add the 25% extra)
+            const bonus = Math.floor(calcDamage(enemy.atk, getStk(enemy, 'atk'), raz.def, getStk(raz, 'def'), pow) * 0.25);
+            S.field[fi].hp = Math.max(0, S.field[fi].hp - bonus);
+            if (S.field[fi].hp === 0) S.field[fi].ko = true;
+            logParts.push(`${raz.name} (${dmg + bonus}) [Attention Rake]`);
+        }
+
+        function enemyTurn(enemy) {
+            renderAll();
+            const alive = S.field.filter(c => !c.ko);
+            if (!alive.length) { advanceTurn(); return; }
+            const ei = S.enemies.findIndex(e => e.id === enemy.id);
+
+            // ── MARE DRAGON ──────────────────────────────────────────────────
+            if (enemy.isBoss) {
+                const roll = Math.random();
+                const taunted = alive.find(c => c.tauntActive);
+
+                // Weights: Attack 35%, Miasma 30%, Dragonskin 15%, Tail Sweep 20%
+                if (roll < 0.35) {
+                    // Attack — Physical, single target, POW 50
+                    const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+                    const dmg = applyEnemyPhysDmg(enemy, target.id, 50);
+                    setLog(`Mare Dragon attacks ${target.name} for ${dmg} dmg!${target.defending ? ' (blocked some)' : ''}`);
+
+                } else if (roll < 0.65) {
+                    // Miasma Breath — Spell, single target, POW 70, DEF/MDEF −1 for 1 round
+                    const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+                    const miasmFi = fieldIdx(target.id);
+                    const dmg = applyEnemyMagDmg(enemy, target.id, 70);
+                    applyBuff(S.field[miasmFi], 'def',  -1, 1, false);
+                    applyBuff(S.field[miasmFi], 'mdef', -1, 1, false);
+                    setLog(`Mare Dragon uses Miasma Breath on ${target.name} for ${dmg} dmg! (DEF/MDEF −1 for 1 round)`);
+
+                } else if (roll < 0.80) {
+                    // Dragonskin — self ATK+1 & DEF+1, capped at +2 each to prevent runaway stacking
+                    const dragon = S.enemies[ei];
+                    const atkStk = getStk(dragon, 'atk');
+                    const defStk = getStk(dragon, 'def');
+                    if (atkStk >= 2 && defStk >= 2) {
+                        // Already at cap — use a basic attack instead
+                        const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+                        const dmg = applyEnemyPhysDmg(enemy, target.id, 50);
+                        setLog(`Mare Dragon is fully charged and attacks ${target.name} for ${dmg} dmg!`);
+                    } else {
+                        applyBuff(dragon, 'atk', 1, 2, true);
+                        applyBuff(dragon, 'def', 1, 2, true);
+                        setLog(`Mare Dragon uses Dragonskin! ATK+1 & DEF+1 for 2 rounds.`);
+                    }
+
+                } else {
+                    // Tail Sweep — Physical, POW 80, hits all targets
+                    let log = `Mare Dragon uses Tail Sweep —`;
+                    const logParts = [];
+                    alive.forEach(c => {
+                        const dmg = applyEnemyPhysDmg(enemy, c.id, 80);
+                        logParts.push(`${c.name} (${dmg})`);
+                    });
+                    applyAttentionRake(enemy, alive, 80, logParts);
+                    setLog(log + ' ' + logParts.join(', ') + ' dmg!');
+                }
+                setTimeout(() => advanceTurn(), 950); return;
+            }
+
+            // ── THORNBACK: Head Bash (30%) ────────────────────────────────────
+            if (enemy.name === 'Thornback' && Math.random() < 0.30) {
+                const taunted = alive.find(c => c.tauntActive);
+                const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+                const dmg = applyEnemyPhysDmg(enemy, target.id, 110);
+                applyBuff(S.enemies[ei], 'atk', -1, 1, true);
+                setLog(`${enemy.name} uses Head Bash on ${target.name} for ${dmg} dmg! (ATK −1 next round)`);
+                setTimeout(() => advanceTurn(), 900); return;
+            }
+
+            // ── CULT FOLLOWER: Shooting Stars (20%) ───────────────────────────
+            if (enemy.name === 'Cult Follower' && Math.random() < 0.20) {
+                let log = `${enemy.name} uses Shooting Stars —`;
+                alive.forEach(c => {
+                    const dmg = applyEnemyMagDmg(enemy, c.id, 65);
+                    log += ` ${c.name} (${dmg})`;
+                });
+                setLog(log + ' dmg!');
+                setTimeout(() => advanceTurn(), 900); return;
+            }
+
+            // ── REYNARD ──────────────────────────────────────────────────────────
+            if (enemy.id === 'reynard') {
+                const roll = Math.random();
+                const taunted = alive.find(c => c.tauntActive);
+
+                // After You (20%): grant Flynn a bonus turn this round + MAG+1 for 1 round
+                if (roll < 0.20) {
+                    const flynnEnemy = S.enemies.find(e => e.id === 'flynn' && !e.ko);
+                    if (flynnEnemy) {
+                        // Insert a bonus queue entry for Flynn immediately after the current unit
+                        const flynnEi = S.enemies.findIndex(e => e.id === 'flynn');
+                        const effSpd = Math.floor(flynnEnemy.spd * buffMul(getStk(flynnEnemy, 'spd')));
+                        const bonusEntry = { ...S.enemies[flynnEi], side: 'enemy', isBonus: true, spd: Math.floor(effSpd / 2) };
+                        // Find where Flynn already sits in the queue (if at all) and insert bonus before that
+                        const insertAt = S.queue.findIndex(u => u.id === 'flynn');
+                        if (insertAt > 0) {
+                            S.queue.splice(insertAt, 0, bonusEntry);
+                        } else {
+                            S.queue.splice(1, 0, bonusEntry); // right after Reynard
+                        }
+                        applyBuff(flynnEnemy, 'mag', 1, 1, true);
+                        setLog(`Reynard says "After you, Flynn!" — Flynn gains a bonus action and MAG+1!`);
+                    } else {
+                        // Flynn is down; use a normal attack instead
+                        const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+                        const dmg = applyEnemyPhysDmg(enemy, target.id, 50);
+                        setLog(`Reynard attacks ${target.name} for ${dmg} dmg!`);
+                    }
+
+                // Smoke Bomb (25%): +1 EVA to all living enemies for 1 round
+                } else if (roll < 0.45) {
+                    S.enemies.filter(e => !e.ko).forEach(e => applyBuff(e, 'eva', 1, 1, true));
+                    setLog(`Reynard tosses a Smoke Bomb! All enemies gain EVA+1 for 1 round!`);
+
+                // Flurry (30%): 3–7 random physical hits, POW 25
+                } else if (roll < 0.75) {
+                    const hits = Math.floor(Math.random() * 5) + 3; // 3–7
+                    let total = 0;
+                    for (let i = 0; i < hits; i++) {
+                        const aliveNow = S.field.filter(c => !c.ko);
+                        if (!aliveNow.length) break;
+                        const tgt = taunted && !taunted.ko ? taunted : aliveNow[Math.floor(Math.random() * aliveNow.length)];
+                        total += applyEnemyPhysDmg(enemy, tgt.id, 25);
+                    }
+                    setLog(`Reynard uses Flurry — ${hits} hits for ${total} total dmg!`);
+
+                // Normal attack (25%)
+                } else {
+                    const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+                    const dmg = applyEnemyPhysDmg(enemy, target.id, 50);
+                    setLog(`Reynard attacks ${target.name} for ${dmg} dmg!${target.defending ? ' (blocked some)' : ''}`);
+                }
+                setTimeout(() => advanceTurn(), 950); return;
+            }
+
+            // ── FLYNN ─────────────────────────────────────────────────────────────
+            if (enemy.id === 'flynn') {
+                const roll = Math.random();
+                const taunted = alive.find(c => c.tauntActive);
+
+                // Taunt (15%): self-taunt for 3 rounds (draws all attacks to Flynn)
+                if (roll < 0.15) {
+                    const flynnEi = S.enemies.findIndex(e => e.id === 'flynn');
+                    applyBuff(S.enemies[flynnEi], 'taunt', 0, 3, true);
+                    setLog(`Flynn uses Taunt! All attacks will be drawn to Flynn for 3 rounds!`);
+
+                // Magical Breath (25%): self MAG+1 and MDEF+1 for 2 rounds
+                } else if (roll < 0.40) {
+                    const flynnEi = S.enemies.findIndex(e => e.id === 'flynn');
+                    applyBuff(S.enemies[flynnEi], 'mag',  1, 2, true);
+                    applyBuff(S.enemies[flynnEi], 'mdef', 1, 2, true);
+                    setLog(`Flynn uses Magical Breath! MAG+1 & MDEF+1 for 2 rounds.`);
+
+                // Dirty Dan (35%): POW 120 Earth spell, uses lower of target's DEF or MDEF
+                } else if (roll < 0.75) {
+                    const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+                    const fi = fieldIdx(target.id);
+                    // Use the lower of the target's DEF/MDEF (and their respective stacks)
+                    const defVal  = target.def  + getStk(target, 'def');
+                    const mdefVal = target.mdef + getStk(target, 'mdef');
+                    const useDef = defVal <= mdefVal;
+                    const defStat = useDef ? target.def  : target.mdef;
+                    const defStk  = useDef ? getStk(target, 'def') : getStk(target, 'mdef');
+                    const dmg = calcDamage(enemy.mag, getStk(enemy, 'mag'), defStat, defStk, 120);
+                    S.field[fi].hp = Math.max(0, target.hp - dmg);
+                    if (S.field[fi].hp === 0) S.field[fi].ko = true;
+                    const statUsed = useDef ? 'DEF' : 'MDEF';
+                    setLog(`Flynn uses Dirty Dan on ${target.name} for ${dmg} dmg! (calculated vs ${statUsed})`);
+
+                // Magic attack (25%): normal MAG-based attack, POW 50
+                } else {
+                    const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+                    const dmg = applyEnemyMagDmg(enemy, target.id, 50);
+                    setLog(`Flynn attacks ${target.name} for ${dmg} dmg!`);
+                }
+                setTimeout(() => advanceTurn(), 950); return;
+            }
+
+            // ── DEFAULT: Normal attack ─────────────────────────────────────────
+            const taunted = alive.find(c => c.tauntActive);
+            const target = taunted || alive[Math.floor(Math.random() * alive.length)];
+            const isMagic = enemy.name === 'Cult Follower';
+            const dmg = isMagic ? applyEnemyMagDmg(enemy, target.id, 50) : applyEnemyPhysDmg(enemy, target.id, 50);
+            setLog(`${enemy.name} attacks ${target.name} for ${dmg} dmg!${(!isMagic && target.defending) ? ' (blocked some)' : ''}`);
+            setTimeout(() => advanceTurn(), 900);
+        }
+
+        function setPanel(title, bcText, bcFn) {
+            document.getElementById('ap-title').textContent = title;
+            const bc = document.getElementById('ap-breadcrumb');
+            bc.textContent = bcText || ''; bc.onclick = bcFn || null;
+            document.getElementById('ap-btns').innerHTML = '';
+            document.getElementById('ap-sub').innerHTML = '';
+        }
+
+        function showMainMenu() {
+            const cur = curUnit(); if (!cur || cur.side === 'enemy') return;
+            const ch = fieldChar(cur.id);
+
+            // Healing Respite: at the start of Grace's turn, heal all allies for 5% of their max HP
+            if (hasPassive(ch, 'healing_respite')) {
+                let healed = false;
+                S.field.filter(c => !c.ko).forEach(c => {
+                    const i = fieldIdx(c.id);
+                    const amt = Math.max(1, Math.floor(c.maxHp * 0.05));
+                    if (c.hp < c.maxHp) { S.field[i].hp = Math.min(c.maxHp, c.hp + amt); healed = true; }
+                });
+                if (healed) setLog(`${ch.name}'s Healing Respite restores 5% HP to all allies!`);
+            }
+
+            setPanel(`${cur.name}'s turn`, '', null);
+            const btns = document.getElementById('ap-btns');
+
+            const aBtn = document.createElement('button'); aBtn.className = 'act-btn'; aBtn.textContent = 'Attack'; aBtn.onclick = () => showAttackTargets(null); btns.appendChild(aBtn);
+
+            const charSkills = ch.skills.filter(s => !s.weaponSkill);
+            const sBtn = document.createElement('button'); sBtn.className = 'act-btn'; sBtn.textContent = 'Skills';
+            if (charSkills.length === 0) sBtn.classList.add('disabled');
+            else sBtn.onclick = () => showSkillList(charSkills, 'Skills', '← main', showMainMenu);
+            btns.appendChild(sBtn);
+
+            const wepSkills = ch.skills.filter(s => s.weaponSkill);
+            const wLabel = ch.weapons && ch.weapons.length ? ch.weapons[0].name + ' skills' : 'Weapon skills';
+            const wBtn = document.createElement('button'); wBtn.className = 'act-btn'; wBtn.textContent = wLabel;
+            if (!wepSkills.length || !ch.weapons || !ch.weapons.length) wBtn.classList.add('disabled');
+            else wBtn.onclick = () => showSkillList(wepSkills, wLabel, '← main', showMainMenu);
+            btns.appendChild(wBtn);
+
+            const dBtn = document.createElement('button'); dBtn.className = 'act-btn'; dBtn.textContent = 'Defend'; dBtn.onclick = doDefend; btns.appendChild(dBtn);
+            const totalItems = (S.items || []).reduce((sum, it) => sum + it.qty, 0);
+            const iBtn = document.createElement('button'); iBtn.className = 'act-btn';
+            iBtn.textContent = totalItems > 0 ? `Items (${totalItems})` : 'Items';
+            if (totalItems === 0) iBtn.classList.add('disabled'); else iBtn.onclick = doItems;
+            btns.appendChild(iBtn);
+            const pBtn = document.createElement('button'); pBtn.className = 'act-btn'; pBtn.textContent = 'Party'; pBtn.onclick = showPartyMenu; btns.appendChild(pBtn);
+        }
+
+        function showSkillList(skills, title, bcText, bcFn) {
+            setPanel(title, bcText, bcFn);
+            const ch = fieldChar(curUnit().id);
+            const sub = document.getElementById('ap-sub');
+            let html = `<div class="submenu"><div class="skill-row">`;
+            skills.forEach(sk => {
+                if (sk.noOp) return;
+                const canAfford = ch.sp >= sk.cost;
+                const locked = (ch.nextRoundLockouts && ch.nextRoundLockouts[sk.id] > 0);
+                const tc = sk.type === 'Physical' ? 'skill-type-phys' : sk.type === 'Spell' ? 'skill-type-spell' : 'skill-type-status';
+                const disClass = (!canAfford ? ' no-sp' : '') + (locked ? ' locked' : '');
+                const skData = JSON.stringify(sk).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                html += `<button class="skill-btn${disClass}" data-sk="${skData}" title="${sk.desc}">
+      ${sk.name}
+      <div class="skill-meta">
+        ${sk.pow > 0 ? `<span class="skill-pow">POW:${sk.pow}</span>` : ''}
+        <span class="skill-cost">${sk.cost}SP</span>
+        <span class="${tc}">${sk.type}</span>
+        ${sk.element ? `<span style="font-size:9px;color:#b8dcc8">${sk.element}</span>` : ''}
+        ${locked ? '<span style="font-size:9px;color:#7a9a7a">[locked]</span>' : ''}
+      </div>
+    </button>`;
+            });
+            html += `</div></div>`;
+            sub.innerHTML = html;
+            sub.querySelectorAll('.skill-btn:not(.no-sp):not(.locked)').forEach(b => {
+                b.onclick = () => {
+                    try {
+                        const sk = JSON.parse(b.dataset.sk.replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+                        execSkill(sk, skills, title, bcText, bcFn);
+                    } catch (e) { console.error(e); }
+                };
+            });
+        }
+
+        function showPartyMenu() {
+            const cur = curUnit();
+            setPanel(`${cur.name}'s turn`, '← main', showMainMenu);
+            const btns = document.getElementById('ap-btns');
+            const cdStr = S.swapCooldownRounds > 0 ? ` (${S.swapCooldownRounds}R)` : '';
+            const swpBtn = document.createElement('button'); swpBtn.className = 'act-btn'; swpBtn.textContent = 'Swap' + cdStr;
+            if (S.swapCooldownRounds > 0) swpBtn.classList.add('disabled'); else swpBtn.onclick = showSwapMenu;
+            btns.appendChild(swpBtn);
+            const infoBtn = document.createElement('button'); infoBtn.className = 'act-btn'; infoBtn.textContent = 'Info'; infoBtn.onclick = showInfoMenu; btns.appendChild(infoBtn);
+            const fleeBtn = document.createElement('button'); fleeBtn.className = 'act-btn danger'; fleeBtn.textContent = 'Flee'; fleeBtn.onclick = doFlee; btns.appendChild(fleeBtn);
+        }
+
+        // UPDATE: Renders <img> for attack target picker
+        function showAttackTargets(pendingSk) {
+            // Enemy taunt: if any living enemy has tauntActive, the player is
+            // forced to target them — skip the picker and execute immediately.
+            const tauntedEnemy = S.enemies.find(e => e.tauntActive && !e.ko);
+            if (tauntedEnemy) {
+                if (pendingSk) execSkillOnTarget(pendingSk, tauntedEnemy.id, null);
+                else execAttack(tauntedEnemy.id);
+                return;
+            }
+
+            setPanel('Choose target', '← main', showMainMenu);
+            const sub = document.getElementById('ap-sub');
+            let html = `<div class="submenu"><div style="display:flex;gap:6px;flex-wrap:wrap">`;
+            S.enemies.filter(e => !e.ko).forEach(e => {
+                const iconHtml = e.icon.includes('/') ? `<img src="${e.icon}" alt="">` : e.icon;
+                html += `<button class="tgt-btn" data-eid="${e.id}">${iconHtml} ${e.name}</button>`;
+            });
+            html += `</div></div>`;
+            sub.innerHTML = html;
+            sub.querySelectorAll('.tgt-btn').forEach(b => {
+                b.onclick = () => {
+                    if (pendingSk) execSkillOnTarget(pendingSk, b.dataset.eid, null);
+                    else execAttack(b.dataset.eid);
+                };
+            });
+        }
+
+        // UPDATE: Renders <img> for ally target picker
+        function showAllyTargets(sk, includeKO, skillList, listTitle, listBcText, listBcFn) {
+            setPanel('Choose ally', '← skills', () => showSkillList(skillList, listTitle, listBcText, listBcFn));
+            const sub = document.getElementById('ap-sub');
+            let html = `<div class="submenu"><div style="display:flex;gap:6px;flex-wrap:wrap">`;
+            const pool = includeKO ? S.field.filter(c => c.ko) : S.field.filter(c => !c.ko);
+            pool.forEach(c => { 
+                const iconHtml = c.icon.includes('/') ? `<img src="${c.icon}" alt="">` : c.icon;
+                html += `<button class="tgt-btn tgt-btn-ally" data-aid="${c.id}">${iconHtml} ${c.name}</button>`; 
+            });
+            if (sk.target === 'ally_single_or_self') {
+                const cur = curUnit();
+                if (!pool.find(c => c.id === cur.id)) {
+                    const ch = fieldChar(cur.id);
+                    const iconHtml = ch.icon.includes('/') ? `<img src="${ch.icon}" alt="">` : ch.icon;
+                    html += `<button class="tgt-btn tgt-btn-ally" data-aid="${cur.id}">${iconHtml} ${ch.name} (self)</button>`;
+                }
+            }
+            html += `</div></div>`;
+            sub.innerHTML = html;
+            sub.querySelectorAll('.tgt-btn').forEach(b => {
+                b.onclick = () => execSkillOnTarget(sk, null, b.dataset.aid);
+            });
+        }
+
+        function execSkill(sk, skillList, listTitle, listBcText, listBcFn) {
+            const cur = curUnit(); const ch = fieldChar(cur.id);
+            if (!ch || ch.sp < sk.cost) { setLog('Not enough SP!'); return; }
+            if (sk.target === 'enemy_single' || sk.target === 'enemy_single_multi') { showAttackTargets(sk); return; }
+            if (sk.target === 'enemy_all' || sk.target === 'enemy_random_multi') { execSkillOnTarget(sk, null, null); return; }
+            if (sk.target === 'ally_single' || sk.target === 'ally_single_or_self') {
+                showAllyTargets(sk, false, skillList, listTitle, listBcText, listBcFn); return;
+            }
+            if (sk.target === 'ally_ko') { showAllyTargets(sk, true, skillList, listTitle, listBcText, listBcFn); return; }
+            if (sk.target === 'ally_all' || sk.target === 'party_all' || sk.target === 'self') { execSkillOnTarget(sk, null, null); return; }
+            execSkillOnTarget(sk, null, null);
+        }
+
+        function execSkillOnTarget(sk, enemyId, allyId) {
+            const cur = curUnit(); const fi = fieldIdx(cur.id); const ch = S.field[fi];
+            if (!ch || ch.sp < sk.cost) { setLog('Not enough SP!'); return; }
+            S.field[fi].sp = Math.max(0, ch.sp - sk.cost);
+            const isCrit = ch.guaranteedCrit;
+            if (isCrit) S.field[fi].guaranteedCrit = false;
+
+            if (sk.type === 'Physical' || sk.type === 'Spell') {
+                const isSpell = sk.type === 'Spell';
+                const baseOffStat = sk.useSpd ? ch.spd : (isSpell ? ch.mag : ch.atk);
+                const offStat = sk.dblAtk ? baseOffStat * 2 : baseOffStat;
+                const offKey = isSpell ? 'mag' : 'atk';
+                const defKey = isSpell ? 'mdef' : 'def';
+
+                const doHit = (eId) => {
+                    const ei = S.enemies.findIndex(e => e.id === eId);
+                    if (ei < 0 || S.enemies[ei].ko) return { dmg: 0, tag: '' };
+                    const e = S.enemies[ei];
+                    const eStat = isSpell ? (e.mdef || 0) : (e.def || 0);
+                    let dmg = calcDamage(offStat, getStk(ch, offKey), eStat, getStk(e, defKey), sk.pow, sk.ignDef || false);
+                    // Cessation: Luchia's crit multiplier is 2x instead of 1.75x
+                    if (isCrit) dmg = Math.floor(dmg * (hasPassive(ch, 'cessation') ? 2.0 : 1.75));
+                    const wre = getWRE(e, sk);
+                    let wreMul = wre.mul;
+                    // Analytic: Brio deals +20% damage on top of weakness multiplier
+                    if (wre.hitWeak && hasPassive(ch, 'analytic')) wreMul *= 1.20;
+                    dmg = Math.max(1, Math.floor(dmg * wreMul));
+                    S.enemies[ei].hp = Math.max(0, e.hp - dmg);
+                    if (S.enemies[ei].hp === 0) S.enemies[ei].ko = true;
+                    if (wre.hitWeak   && !S.enemies[ei].revealedWeak.includes(wre.hitWeak))     S.enemies[ei].revealedWeak.push(wre.hitWeak);
+                    if (wre.hitResist && !S.enemies[ei].revealedResist.includes(wre.hitResist)) S.enemies[ei].revealedResist.push(wre.hitResist);
+                    if (S.enemies[ei].hp === 0) S.enemies[ei].ko = true;
+                    if (sk.spDrain) S.field[fi].sp = Math.min(ch.maxSp, S.field[fi].sp + Math.floor(dmg * sk.spDrain));
+                    if (sk.burnChance && Math.random() < sk.burnChance) {
+                        S.enemies[ei].statusEffects = S.enemies[ei].statusEffects || {};
+                        S.enemies[ei].statusEffects.burn = { dur: sk.burnDur || 3 };
+                    }
+                    if (sk.defDebuff) {
+                        applyBuff(S.enemies[ei], 'def', sk.defDebuffAmt, sk.defDebuffDur, true);
+                    }
+                    const analyticNote = (wre.hitWeak && hasPassive(ch, 'analytic')) ? ' 🔬+20%' : '';
+                    return { dmg, tag: wre.tag + analyticNote };
+                };
+
+                if (sk.target === 'enemy_single') { const { dmg: d, tag } = doHit(enemyId); setLog(`${cur.name} uses ${sk.name}${isCrit ? ' CRIT' : ''} for ${d} dmg!${tag}${sk.spDrain ? ` (+${Math.floor(d * sk.spDrain)} SP)` : ''}`); }
+                else if (sk.target === 'enemy_single_multi') {
+                    // Spirit Focus: Maxmillian always hits max times when above 50% SP
+                    const maxH = 5; const minH = 2;
+                    const maxHits = hasPassive(ch, 'spirit_focus') && ch.sp > ch.maxSp * 0.5 ? maxH : Math.floor(Math.random() * (maxH - minH + 1)) + minH;
+                    let t = 0; let tag = ''; for (let i = 0; i < maxHits; i++) { const r = doHit(enemyId); t += r.dmg; if (r.tag) tag = r.tag; }
+                    setLog(`${cur.name} uses ${sk.name} — ${maxHits} hits, ${t} total dmg!${tag}${hasPassive(ch, 'spirit_focus') && ch.sp > ch.maxSp * 0.5 ? ' 🔥Spirit Focus' : ''}`);
+                }
+                else if (sk.target === 'enemy_all') { const alive = S.enemies.filter(e => !e.ko); let t = 0; let tag = ''; alive.forEach(e => { const r = doHit(e.id); t += r.dmg; if (r.tag) tag = r.tag; }); setLog(`${cur.name} uses ${sk.name} — hits all for ${t} total dmg!${tag}`); }
+                else if (sk.target === 'enemy_random_multi') {
+                    const alive = S.enemies.filter(e => !e.ko); if (!alive.length) return;
+                    const maxH = sk.weaponSkill ? 4 : 5; const minH = sk.weaponSkill ? 1 : 2;
+                    // Spirit Focus: always hit max random hits when above 50% SP
+                    const hits = (hasPassive(ch, 'spirit_focus') && ch.sp > ch.maxSp * 0.5)
+                        ? maxH
+                        : Math.floor(Math.random() * (maxH - minH + 1)) + minH;
+                    let t = 0; let tag = '';
+                    for (let i = 0; i < hits; i++) { const tgt = alive[Math.floor(Math.random() * alive.length)]; const r = doHit(tgt.id); t += r.dmg; if (r.tag) tag = r.tag; }
+                    setLog(`${cur.name} uses ${sk.name} — ${hits} hits, ${t} total dmg!${tag}${hasPassive(ch, 'spirit_focus') && ch.sp > ch.maxSp * 0.5 ? ' 🔥Spirit Focus' : ''}`);
+                }
+                document.getElementById('ap-sub').innerHTML = ''; setTimeout(() => advanceTurn(), 700); return;
+            }
+
+            if (sk.buffKey === 'taunt') {
+                const tgt = allyId ? S.field.find(c => c.id === allyId) : ch;
+                applyBuff(tgt, 'taunt', 0, sk.buffDur || 2);
+                setLog(`${cur.name} makes ${tgt.name} the center of attention!`);
+            } else if (sk.buffKey === 'def_mdef') {
+                const tgt = S.field.find(c => c.id === allyId) || ch;
+                applyBuff(tgt, 'def_mdef', sk.buffAmt, sk.buffDur);
+                setLog(`${cur.name} grants ${tgt.name} DEF+1 & MDEF+1 for ${sk.buffDur} rounds!`);
+            } else if (sk.buffKey && sk.target === 'self') {
+                applyBuff(ch, sk.buffKey, sk.buffAmt, sk.buffDur);
+                setLog(`${cur.name} gains ${sk.buffKey.toUpperCase()}+${sk.buffAmt} for ${sk.buffDur} rounds!`);
+            } else if (sk.buffKey && (sk.target === 'ally_single' || sk.target === 'ally_single_or_self')) {
+                const tgt = S.field.find(c => c.id === allyId) || ch;
+                applyBuff(tgt, sk.buffKey, sk.buffAmt, sk.buffDur);
+                if (sk.buffKey === 'spd') {
+                    // Reposition the boosted target within the *remaining* queue only.
+                    // Never rebuild the full queue — that would re-insert units who already acted.
+                    const effSpd = Math.floor(tgt.spd * buffMul(getStk(S.field[fieldIdx(tgt.id)], 'spd')));
+                    // Remove any existing entry for the target from slots [1..] (slot 0 is the current actor)
+                    for (let qi = S.queue.length - 1; qi >= 1; qi--) {
+                        if (S.queue[qi].id === tgt.id && !S.queue[qi].isBonus) S.queue.splice(qi, 1);
+                    }
+                    // Only re-insert if the target hasn't already acted this round
+                    if (tgt.id !== cur.id && !S.field[fieldIdx(tgt.id)].ko && !(S.actedThisRound && S.actedThisRound.has(tgt.id))) {
+                        const newEntry = { ...S.field[fieldIdx(tgt.id)], side: 'player', isBonus: false, spd: effSpd };
+                        // Insert at correct position based on new effective speed
+                        let insertAt = 1;
+                        while (insertAt < S.queue.length && S.queue[insertAt].spd >= effSpd) insertAt++;
+                        S.queue.splice(insertAt, 0, newEntry);
+                    }
+                    setLog(`${cur.name} boosts ${tgt.name}'s Speed! Turn order updated.`);
+                } else {
+                    setLog(`${cur.name} grants ${tgt.name} ${sk.buffKey.toUpperCase()}+${sk.buffAmt} for ${sk.buffDur} rounds!`);
+                }
+            } else if (sk.healScale && sk.target === 'ally_single') {
+                const tgt = S.field.find(c => c.id === allyId); if (!tgt) return;
+                const heal = calcHeal(ch.mdef, getStk(ch, 'mdef'), sk.healScale);
+                S.field[fieldIdx(tgt.id)].hp = Math.min(tgt.maxHp, tgt.hp + heal);
+                // Share of Spoils: Brandon also heals 50% when he heals an ally
+                if (hasPassive(ch, 'share_of_spoils') && tgt.id !== ch.id) {
+                    const selfHeal = Math.floor(heal * 0.5);
+                    S.field[fi].hp = Math.min(ch.maxHp, ch.hp + selfHeal);
+                    setLog(`${cur.name} heals ${tgt.name} for ${heal} HP! (Share of Spoils: +${selfHeal} HP to self)`);
+                } else {
+                    setLog(`${cur.name} heals ${tgt.name} for ${heal} HP!`);
+                }
+            } else if (sk.healScale && sk.target === 'ally_all') {
+                const heal = calcHeal(ch.mdef, getStk(ch, 'mdef'), sk.healScale);
+                S.field.filter(c => !c.ko).forEach((c, _) => {
+                    const i = fieldIdx(c.id);
+                    S.field[i].hp = Math.min(S.field[i].maxHp, S.field[i].hp + heal);
+                });
+                // Share of Spoils: Brandon also heals 50% on AoE heals (he already healed himself above, so add the extra)
+                if (hasPassive(ch, 'share_of_spoils')) {
+                    const bonus = Math.floor(heal * 0.5);
+                    S.field[fi].hp = Math.min(ch.maxHp, S.field[fi].hp + bonus);
+                    setLog(`${cur.name} heals all allies for ${heal} HP! (Share of Spoils: +${bonus} HP to self)`);
+                } else {
+                    setLog(`${cur.name} heals all allies for ${heal} HP!`);
+                }
+            } else if (sk.revive) {
+                const tgt = S.field.find(c => c.id === allyId); if (!tgt) return;
+                const ti = fieldIdx(tgt.id);
+                S.field[ti].ko = false; S.field[ti].hp = 1;
+                const alreadyQueued = S.queue.some(u => u.id === tgt.id && !u.isBonus);
+                if (!alreadyQueued) {
+                    const revUnit = { ...S.field[ti], side: 'player', isBonus: false };
+                    S.queue.splice(1, 0, revUnit);
+                }
+                setLog(`${cur.name} revives ${tgt.name} with 1 HP!`);
+            } else if (sk.clearAllBuffs) {
+                S.field.forEach((_, i) => { S.field[i].buffs = { atk: 0, def: 0, mdef: 0, spd: 0 }; S.field[i].buffTimers = {}; S.field[i].tauntActive = false; });
+                setLog(`${cur.name} uses Clear Smoke — all stat changes cleared!`);
+            } else if (sk.clearSelfBuffsHeal) {
+                const hasBuffs = Object.values(ch.buffs || {}).some(v => v !== 0);
+                if (!hasBuffs) { setLog(`${cur.name} tries Deep Breath — but has no buffs!`); return; }
+                const total = Object.values(ch.buffs).reduce((a, b) => a + Math.abs(b), 0);
+                const heal = Math.floor(total * ch.maxHp * 0.08);
+                S.field[fi].buffs = { atk: 0, def: 0, mdef: 0, spd: 0 }; S.field[fi].buffTimers = {};
+                S.field[fi].hp = Math.min(ch.maxHp, ch.hp + heal);
+                setLog(`${cur.name} uses Deep Breath — clears buffs, restores ${heal} HP!`);
+            } else if (sk.quickFeet) {
+                S.field[fi].pendingExtraAction = true;
+                S.field[fi].nextRoundLockouts = S.field[fi].nextRoundLockouts || {};
+                S.field[fi].nextRoundLockouts['quick_feet'] = 1;
+                setLog(`${cur.name} uses Quick Feet — gains a bonus action next round!`);
+            } else if (sk.grantCrit) {
+                S.field[fi].guaranteedCrit = true;
+                setLog(`${cur.name} focuses — next attack is a guaranteed Critical Hit!`);
+            } else if (sk.shareSP) {
+                const tgt = S.field.find(c => c.id === allyId); if (!tgt) return;
+                const give = Math.floor(ch.sp * 0.5);
+                S.field[fi].sp = ch.sp - give;
+                S.field[fieldIdx(tgt.id)].sp = Math.min(tgt.maxSp, tgt.sp + give);
+                setLog(`${cur.name} shares ${give} SP with ${tgt.name}!`);
+            } else if (sk.mdefDebuff && sk.target === 'enemy_all') {
+                // Green Smoke: MDEF debuff on all living enemies
+                const targets = S.enemies.filter(e => !e.ko);
+                targets.forEach(e => applyBuff(e, 'mdef', sk.mdefDebuffAmt, sk.mdefDebuffDur, true));
+                setLog(`${cur.name} uses ${sk.name}! All enemies take MDEF${sk.mdefDebuffAmt} for ${sk.mdefDebuffDur} rounds.`);
+            } else if (sk.isThief) {
+                // 15% base steal chance; picks a random item from the pool and adds it to S.items
+                if (Math.random() < 0.15) {
+                    const stolen = ITEMS[Math.floor(Math.random() * ITEMS.length)];
+                    const iIdx = S.items.findIndex(i => i.id === stolen.id);
+                    if (iIdx >= 0) { S.items[iIdx].qty++; } else { S.items.push({ ...stolen, qty: 1 }); }
+                    setLog(`${cur.name} steals a ${stolen.icon} ${stolen.name}! Added to items.`);
+                } else {
+                    setLog(`${cur.name} attempts to steal... and fails!`);
+                }
+            } else {
+                setLog(`${cur.name} uses ${sk.name}!`);
+            }
+
+            document.getElementById('ap-sub').innerHTML = '';
+            setTimeout(() => advanceTurn(), 600);
+        }
+
+        function execAttack(enemyId) {
+            const cur = curUnit(); const fi = fieldIdx(cur.id); const ch = S.field[fi];
+            const ei = S.enemies.findIndex(e => e.id === enemyId); const e = S.enemies[ei];
+            const isCrit = ch.guaranteedCrit; if (isCrit) S.field[fi].guaranteedCrit = false;
+            let dmg = calcDamage(ch.atk, getStk(ch, 'atk'), e.def, getStk(e, 'def'), 50);
+            // Cessation: Luchia's crit multiplier is 2x instead of 1.75x
+            if (isCrit) dmg = Math.floor(dmg * (hasPassive(ch, 'cessation') ? 2.0 : 1.75));
+            S.enemies[ei].hp = Math.max(0, e.hp - dmg);
+            if (S.enemies[ei].hp === 0) S.enemies[ei].ko = true;
+            // Red Smoke (Scranny): basic attack applies ATK-1 to the target for 1 round
+            if (hasPassive(ch, 'red_smoke')) {
+                applyBuff(S.enemies[ei], 'atk', -1, 1, true);
+            }
+            // Blue Smoke (Wedge): basic attack applies DEF-1 to the target for 1 round
+            if (hasPassive(ch, 'blue_smoke')) {
+                applyBuff(S.enemies[ei], 'def', -1, 1, true);
+            }
+            const smokeNote = hasPassive(ch, 'red_smoke') ? ' 🔴ATK-1' : hasPassive(ch, 'blue_smoke') ? ' 🔵DEF-1' : '';
+            setLog(`${cur.name} attacks ${e.name}${isCrit ? ' CRIT' : ''} for ${dmg} dmg!${smokeNote}`);
+            document.getElementById('ap-sub').innerHTML = ''; setTimeout(() => advanceTurn(), 700);
+        }
+
+        function doDefend() {
+            const cur = curUnit(); const fi = fieldIdx(cur.id);
+            S.field[fi].defending = true;
+            setLog(`${cur.name} takes a defensive stance (reduced damage until next turn).`);
+            setTimeout(() => advanceTurn(), 400);
+        }
+
+        function doItems() {
+            const cur = curUnit();
+            setPanel('Items', '← main', showMainMenu);
+            const sub = document.getElementById('ap-sub');
+            const available = S.items.filter(it => it.qty > 0);
+            if (!available.length) { sub.innerHTML = `<div class="submenu"><div class="submenu-title" style="color:#7a9a7a">No items remaining.</div></div>`; return; }
+            let html = `<div class="submenu"><div class="skill-row">`;
+            available.forEach(it => {
+                html += `<button class="skill-btn" data-iid="${it.id}">
+                    ${it.icon} ${it.name}
+                    <div class="skill-meta">
+                        <span class="skill-cost">${it.qty}x</span>
+                        <span class="skill-type-status">Item</span>
+                        <span style="font-size:9px;color:#8aaa8a">${it.desc}</span>
+                    </div>
+                </button>`;
+            });
+            html += `</div></div>`;
+            sub.innerHTML = html;
+            sub.querySelectorAll('.skill-btn').forEach(b => {
+                b.onclick = () => {
+                    const it = S.items.find(i => i.id === b.dataset.iid);
+                    if (it) showItemTargets(it);
+                };
+            });
+        }
+
+        function showItemTargets(it) {
+            setPanel(`Use ${it.icon} ${it.name}`, '← items', doItems);
+            const sub = document.getElementById('ap-sub');
+            const pool = it.target === 'ally_ko' ? S.field.filter(c => c.ko) : S.field.filter(c => !c.ko);
+            let html = `<div class="submenu"><div style="display:flex;gap:6px;flex-wrap:wrap">`;
+            pool.forEach(c => {
+                const iconHtml = c.icon.includes('/') ? `<img src="${c.icon}" alt="">` : c.icon;
+                html += `<button class="tgt-btn tgt-btn-ally" data-aid="${c.id}">${iconHtml} ${c.name}</button>`;
+            });
+            html += `</div></div>`;
+            sub.innerHTML = html;
+            sub.querySelectorAll('.tgt-btn').forEach(b => {
+                b.onclick = () => execItem(it, b.dataset.aid);
+            });
+        }
+
+        function execItem(it, allyId) {
+            const tgt = S.field.find(c => c.id === allyId); if (!tgt) return;
+            const ti = fieldIdx(tgt.id);
+            const iIdx = S.items.findIndex(i => i.id === it.id);
+            S.items[iIdx].qty--;
+            if (it.healFlat) {
+                const healed = Math.min(it.healFlat, tgt.maxHp - tgt.hp);
+                S.field[ti].hp = Math.min(tgt.maxHp, tgt.hp + it.healFlat);
+                // Share of Spoils: if the item user is Brandon and the target is someone else
+                const user = S.field.find(c => c.id === curUnit().id);
+                if (user && hasPassive(user, 'share_of_spoils') && tgt.id !== user.id) {
+                    const ufi = fieldIdx(user.id);
+                    const selfHeal = Math.floor(it.healFlat * 0.5);
+                    S.field[ufi].hp = Math.min(user.maxHp, user.hp + selfHeal);
+                    setLog(`Used ${it.icon} ${it.name} on ${tgt.name} — restored ${it.healFlat} HP! (Share of Spoils: +${selfHeal} HP to ${user.name})`);
+                } else {
+                    setLog(`Used ${it.icon} ${it.name} on ${tgt.name} — restored ${it.healFlat} HP!`);
+                }
+            } else if (it.restoreSP) {
+                S.field[ti].sp = Math.min(tgt.maxSp, tgt.sp + it.restoreSP);
+                setLog(`Used ${it.icon} ${it.name} on ${tgt.name} — restored ${it.restoreSP} SP!`);
+            } else if (it.atkBuff) {
+                applyBuff(S.field[ti], 'atk', it.atkBuff, it.buffDur);
+                applyBuff(S.field[ti], 'mag', it.magBuff, it.buffDur);
+                setLog(`Used ${it.icon} ${it.name} on ${tgt.name} — ATK+1 & MAG+1 for ${it.buffDur} rounds!`);
+            }
+            document.getElementById('ap-sub').innerHTML = '';
+            setTimeout(() => advanceTurn(), 600);
+        }
+        function doFlee() { setLog('You cannot flee from this battle!'); showPartyMenu(); }
+
+        // UPDATE: Renders <img> for Swap menu
+        function showSwapMenu() {
+            const cur = curUnit();
+            setPanel('Swap — choose target', '← party', showPartyMenu);
+            const sub = document.getElementById('ap-sub');
+            let html = `<div class="submenu"><div class="submenu-title">Who should ${cur.name} swap with?</div><div class="swap-grid">`;
+            html += `<div class="swap-section-label">Active party</div>`;
+            S.field.forEach(c => {
+                if (c.id === cur.id) return;
+                const iconHtml = c.icon.includes('/') ? `<img src="${c.icon}" alt="">` : c.icon;
+                html += `<button class="swap-btn${c.ko ? ' cant' : ''}" data-src="field" data-tid="${c.id}"><div class="swap-btn-top">${iconHtml} ${c.name}</div><div style="font-size:9px;color:#5a7a5a;margin-top:2px">${c.hp}/${c.maxHp} HP</div></button>`;
+            });
+            html += `<div class="swap-section-label">Bench</div>`;
+            S.bench.forEach(c => {
+                const iconHtml = c.icon.includes('/') ? `<img src="${c.icon}" alt="">` : c.icon;
+                html += `<button class="swap-btn${c.ko ? ' cant' : ''}" data-src="bench" data-tid="${c.id}"><div class="swap-btn-top">${iconHtml} ${c.name}</div><div style="font-size:9px;color:#5a7a5a;margin-top:2px">${c.hp}/${c.maxHp} HP</div></button>`;
+            });
+            html += `</div></div>`;
+            sub.innerHTML = html;
+            sub.querySelectorAll('.swap-btn:not(.cant)').forEach(b => {
+                b.onclick = () => confirmSwap(b.dataset.src, b.dataset.tid);
+            });
+        }
+
+        function confirmSwap(source, targetId) {
+            const cur = curUnit(); const actorIdx = fieldIdx(cur.id);
+            if (source === 'field') {
+                const ti = fieldIdx(targetId);
+                const tmp = { ...S.field[actorIdx] }; S.field[actorIdx] = { ...S.field[ti] }; S.field[ti] = tmp;
+                setLog(`${tmp.name} and ${S.field[actorIdx].name} swap positions!`);
+            } else {
+                const ti = S.bench.findIndex(c => c.id === targetId);
+                const incoming = { ...S.bench[ti], waitingUntilNextRound: true };
+                const outgoing = { ...S.field[actorIdx] };
+                S.field[actorIdx] = incoming; S.bench[ti] = outgoing;
+                S.queue = S.queue.filter(u => u.id !== outgoing.id);
+                S.swapCooldownRounds = 3;
+                setLog(`${outgoing.name} to the bench. ${incoming.name} enters — ready next round!`);
+            }
+            setTimeout(() => advanceTurn(), 600);
+        }
+
+        // UPDATE: Renders <img> for Info screen
+        function showInfoMenu() {
+            setPanel('Party info', '← party', showPartyMenu);
+            const sub = document.getElementById('ap-sub');
+            const all = [...S.field.map(c => ({ ...c, onBench: false })), ...S.bench.map(c => ({ ...c, onBench: true }))];
+            let html = `<div class="submenu"><div class="info-grid">`;
+            all.forEach(c => {
+                const iconHtml = c.icon.includes('/') ? `<img src="${c.icon}" alt="">` : c.icon;
+
+                // Effective stats
+                const eAtk  = Math.floor(c.atk  * buffMul(getStk(c, 'atk')));
+                const eMag  = Math.floor(c.mag  * buffMul(getStk(c, 'mag')));
+                const eDef  = Math.floor(c.def  * buffMul(getStk(c, 'def')));
+                const eMdef = Math.floor(c.mdef * buffMul(getStk(c, 'mdef')));
+                const eSpd  = Math.floor(c.spd  * buffMul(getStk(c, 'spd')));
+                const eEva  = (c.eva || 0) + (getStk(c, 'eva') || 0);
+
+                // Colour helpers: green if buffed, red if debuffed, plain if neutral
+                function statCol(eff, base) {
+                    if (eff > base) return 'color:#7dd87d';
+                    if (eff < base) return 'color:#e87070';
+                    return '';
+                }
+                function statStr(eff, base, stk) {
+                    if (!stk) return `${eff}`;
+                    const sign = stk > 0 ? '+' : '';
+                    return `${eff} <span style="font-size:9px;opacity:0.7">(${sign}${stk})</span>`;
+                }
+
+                // Active status effects block
+                const statuses = [];
+                if (c.ko)                 statuses.push(`<span style="color:#e87070">KO</span>`);
+                if (c.defending)          statuses.push(`<span style="color:#85b7eb">Defending</span>`);
+                if (c.tauntActive)        statuses.push(`<span style="color:#e87070">Taunt ${c.buffTimers && c.buffTimers.taunt ? `(${c.buffTimers.taunt.dur}r)` : ''}</span>`);
+                if (c.guaranteedCrit)     statuses.push(`<span style="color:#f0c040">Crit Ready</span>`);
+                if (c.waitingUntilNextRound) statuses.push(`<span style="color:#7a9a7a">Waiting</span>`);
+                if (c.statusEffects && c.statusEffects.burn) statuses.push(`<span style="color:#ff6a00">Burn (${c.statusEffects.burn.dur}r)</span>`);
+
+                // Active buffs with remaining rounds
+                const buffKeys = [
+                    { key: 'atk',  label: 'ATK',  pos: '#e05050', neg: '#a03838' },
+                    { key: 'mag',  label: 'MAG',  pos: '#b070e0', neg: '#7a4aa0' },
+                    { key: 'def',  label: 'DEF',  pos: '#5590d8', neg: '#3a6090' },
+                    { key: 'mdef', label: 'MDEF', pos: '#50b870', neg: '#387a50' },
+                    { key: 'spd',  label: 'SPD',  pos: '#f0c040', neg: '#a08828' },
+                    { key: 'eva',  label: 'EVA',  pos: '#9a9a9a', neg: '#666666' },
+                ];
+                buffKeys.forEach(({ key, label, pos, neg }) => {
+                    const stk = getStk(c, key);
+                    if (!stk) return;
+                    const dur = c.buffTimers && c.buffTimers[key] ? `(${c.buffTimers[key].dur}r)` : '';
+                    const col = stk > 0 ? pos : neg;
+                    const sign = stk > 0 ? '+' : '';
+                    statuses.push(`<span style="color:${col}">${label}${sign}${stk} ${dur}</span>`);
+                });
+
+                const statusBlock = statuses.length
+                    ? `<div style="margin-top:4px;border-top:0.5px solid #2a4a2a;padding-top:4px;display:flex;flex-wrap:wrap;gap:3px;font-size:9px">${statuses.join('')}</div>`
+                    : '';
+
+                const PASSIVE_LABELS = {
+                    red_smoke:       { name: 'Red Smoke',       desc: 'Basic attacks apply ATK−1 to target for 1 round.' },
+                    attention_rake:  { name: 'Attention Rake',  desc: 'While Taunt is active, also receives AoE hits at +25% damage.' },
+                    analytic:        { name: 'Analytic',        desc: 'Weakness hits deal an additional 20% damage.' },
+                    counterattack:   { name: 'Counterattack',   desc: '30% chance to retaliate against Physical attackers.' },
+                    blue_smoke:      { name: 'Blue Smoke',      desc: 'Basic attacks apply DEF−1 to target for 1 round.' },
+                    share_of_spoils: { name: 'Share of Spoils', desc: 'Heals self for 50% of any HP restored to allies.' },
+                    cessation:       { name: 'Cessation',       desc: 'Critical Hit multiplier increased from 1.75× to 2×.' },
+                    healing_respite: { name: 'Healing Respite', desc: 'At the start of this turn, heals all allies for 5% max HP.' },
+                    spirit_focus:    { name: 'Spirit Focus',    desc: 'Multi-hit moves always hit maximum times when above 50% SP.' },
+                };
+                const passiveBlock = (c.passives && c.passives.length)
+                    ? `<div style="margin-top:4px;border-top:0.5px solid #2a4a2a;padding-top:4px">
+                        <div style="font-size:9px;color:#8aaa8a;margin-bottom:2px">PASSIVES</div>
+                        ${c.passives.map(pid => {
+                            const p = PASSIVE_LABELS[pid];
+                            return p ? `<div style="font-size:9px;color:#c8e8a8;margin-bottom:2px"><span style="color:#e8c060">${p.name}</span> — ${p.desc}</div>` : '';
+                        }).join('')}
+                       </div>`
+                    : '';
+
+                html += `<div class="info-card${c.onBench ? ' bench-card' : ''}${c.ko ? ' ko' : ''}">
+      <div class="info-card-name">${iconHtml} ${c.name} <span style="font-size:9px;color:#5a7a5a">${c.cls}</span>${c.onBench ? '<span style="font-size:9px;color:#5a7a5a;margin-left:4px">bench</span>' : ''}</div>
+      <div class="info-stat-row"><span>HP</span><span class="info-stat-val" style="${c.ko ? 'color:#e87070' : ''}">${c.hp}/${c.maxHp}</span></div>
+      <div class="info-stat-row"><span>SP</span><span class="info-stat-val">${c.sp}/${c.maxSp}</span></div>
+      <div class="info-stat-row"><span>ATK</span><span class="info-stat-val" style="${statCol(eAtk, c.atk)}">${statStr(eAtk, c.atk, getStk(c,'atk'))}</span></div>
+      <div class="info-stat-row"><span>MAG</span><span class="info-stat-val" style="${statCol(eMag, c.mag)}">${statStr(eMag, c.mag, getStk(c,'mag'))}</span></div>
+      <div class="info-stat-row"><span>DEF</span><span class="info-stat-val" style="${statCol(eDef, c.def)}">${statStr(eDef, c.def, getStk(c,'def'))}</span></div>
+      <div class="info-stat-row"><span>M.DEF</span><span class="info-stat-val" style="${statCol(eMdef, c.mdef)}">${statStr(eMdef, c.mdef, getStk(c,'mdef'))}</span></div>
+      <div class="info-stat-row"><span>SPD</span><span class="info-stat-val" style="${statCol(eSpd, c.spd)}">${statStr(eSpd, c.spd, getStk(c,'spd'))}</span></div>
+      <div class="info-stat-row"><span>EVA</span><span class="info-stat-val" style="${statCol(eEva, c.eva)}">${statStr(eEva, c.eva || 0, getStk(c,'eva'))}</span></div>
+      ${statusBlock}
+      ${passiveBlock}
+    </div>`;
+            });
+            html += `</div></div>`; sub.innerHTML = html;
+        }
+
+        // ── PARTY SELECT ──────────────────────────────────────────────────────
+        let selectedIds = []; // ordered list of picked character ids
+
+        function iconHtml(icon) {
+            return icon.includes('/') ? `<img src="${icon}" alt="">` : icon;
+        }
+
+        function selectScenario(key) {
+            currentScenario = key;
+            document.getElementById('scenario-select-screen').style.display = 'none';
+            document.getElementById('party-select-screen').style.display = '';
+            resetSelection();
+        }
+
+        function renderPartySelect() {
+            // Render roster cards
+            const roster = document.getElementById('ps-roster');
+            roster.innerHTML = '';
+            RAW_CHARS.forEach(c => {
+                const slotIdx = selectedIds.indexOf(c.id);
+                const isSelected = slotIdx !== -1;
+                const isFull = selectedIds.length >= 4 && !isSelected;
+                roster.innerHTML += `
+                    <div class="ps-char-card${isSelected ? ' selected' : ''}${isFull ? ' disabled' : ''}"
+                         onclick="toggleCharSelect('${c.id}')">
+                        <div class="ps-char-icon">${iconHtml(c.icon)}</div>
+                        <div class="ps-char-name">${c.name}</div>
+                        <div class="ps-char-cls">${c.cls}</div>
+                        ${isSelected ? `<div class="ps-char-slot-badge">Slot ${slotIdx + 1}</div>` : ''}
+                    </div>`;
+            });
+
+            // Render slots
+            for (let i = 0; i < 4; i++) {
+                const slot = document.getElementById(`ps-slot-${i}`);
+                const charId = selectedIds[i];
+                if (charId) {
+                    const c = RAW_CHARS.find(x => x.id === charId);
+                    slot.className = 'ps-slot filled';
+                    slot.innerHTML = `
+                        <span class="ps-slot-num">Slot ${i + 1}</span>
+                        <div class="ps-slot-icon">${iconHtml(c.icon)}</div>
+                        <div class="ps-slot-name">${c.name}</div>`;
+                } else {
+                    slot.className = 'ps-slot';
+                    slot.innerHTML = `<span class="ps-slot-num">Slot ${i + 1}</span><span class="ps-slot-empty-label">Empty</span>`;
+                }
+            }
+
+            // Update footer
+            document.getElementById('ps-count').textContent = selectedIds.length;
+            document.getElementById('ps-start-btn').disabled = selectedIds.length < 4;
+            document.getElementById('ps-reset-btn').disabled = selectedIds.length === 0;
+        }
+
+        function toggleCharSelect(id) {
+            const idx = selectedIds.indexOf(id);
+            if (idx !== -1) {
+                // Deselect — remove from list
+                selectedIds.splice(idx, 1);
+            } else if (selectedIds.length < 4) {
+                selectedIds.push(id);
+            }
+            renderPartySelect();
+        }
+
+        function resetSelection() {
+            selectedIds = [];
+            renderPartySelect();
+        }
+
+        function startBattle() {
+            if (selectedIds.length < 4) return;
+
+            // Build field and bench from selection order
+            const fieldRaw = selectedIds.map(id => RAW_CHARS.find(c => c.id === id));
+            const benchRaw = RAW_CHARS.filter(c => !selectedIds.includes(c.id));
+
+            // Hide select screen, show battle
+            document.getElementById('party-select-screen').style.display = 'none';
+            document.getElementById('battle-wrap').style.display = '';
+
+            // Boot state with chosen party
+            S = freshState(fieldRaw, benchRaw);
+            S.queue = buildQueue(S);
+            renderAll();
+            const introLog = currentScenario === 'cult'
+                ? 'Cult Followers emerge from the shadows!'
+                : currentScenario === 'boss'
+                ? 'The Mare Dragon descends! Its minions close in!'
+                : currentScenario === 'dusty_duo'
+                ? 'Reynard and Flynn step out of the dust. This will be trouble.'
+                : 'Wild Thornbacks block your path!';
+            setLog(introLog);
+            showMainMenu();
+        }
+
+        // Patch freshState to accept optional field/bench overrides
+        const ITEMS = [
+            { id: 'potion',      name: 'Potion',      icon: '🧪', desc: 'Heal a character by 150 HP.',              target: 'ally_single', healFlat: 150 },
+            { id: 'dragon_tear', name: 'Dragon Tear', icon: '💧', desc: 'Restore a character\'s SP by 50.',          target: 'ally_single', restoreSP: 50  },
+            { id: 'starfruit',   name: 'Starfruit',   icon: '⭐', desc: 'Grant +1 ATK & +1 MAG for 2 rounds.',      target: 'ally_single', atkBuff: 1, magBuff: 1, buffDur: 2 },
+        ];
+        function freshState(fieldRaw, benchRaw) {
+            fieldRaw = fieldRaw || RAW_CHARS.slice(0, 4);
+            benchRaw = benchRaw || RAW_CHARS.slice(4);
+            const enemyTemplates = SCENARIO_ENEMIES[currentScenario] || SCENARIO_ENEMIES.thornbacks;
+            return {
+                field: fieldRaw.map(makeChar),
+                bench: benchRaw.map(makeChar),
+                enemies: enemyTemplates.map(e => ({ ...e, buffs: { atk: 0, def: 0, mag: 0, mdef: 0, eva: 0, spd: 0 }, buffTimers: {}, tauntActive: false, statusEffects: {}, revealedWeak: [], revealedResist: [] })),
+                queue: [], round: 1, swapCooldownRounds: 0, log: 'The battle begins!',
+                actedThisRound: new Set(),
+                items: ITEMS.map(it => ({ ...it, qty: 2 }))
+            };
+        }
+
+        // Play again returns to scenario select
+        function resetBattle() {
+            document.getElementById('battle-wrap').style.display = 'none';
+            document.getElementById('party-select-screen').style.display = 'none';
+            document.getElementById('scenario-select-screen').style.display = '';
+            selectedIds = [];
+        }
+
+        // Init party select
+        renderPartySelect();
+    </script>
+</body>
+
+</html>
