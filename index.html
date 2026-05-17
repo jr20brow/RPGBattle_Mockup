@@ -1050,18 +1050,18 @@
                     <div class="ss-enemy-row">
                         <div class="ss-enemy-chip" style="border-color:#3a5a6a;flex:1">
                             <span class="ss-enemy-chip-name" style="color:#a0c8e8"><img src="assets/Reynard.png" style="width:14px;height:14px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:3px">Reynard</span>
-                            <span class="ss-enemy-chip-stats">500 HP · ATK 23 · DEF 10 · SPD 31 · EVA 20</span>
+                            <span class="ss-enemy-chip-stats">650 HP · ATK 23 · DEF 10 · SPD 31 · EVA 20</span>
                         </div>
                         <div class="ss-enemy-chip" style="border-color:#3a5a6a;flex:1">
                             <span class="ss-enemy-chip-name" style="color:#a0c8e8"><img src="assets/Flynn.png" style="width:14px;height:14px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:3px">Flynn</span>
-                            <span class="ss-enemy-chip-stats">800 HP · MAG 25 · DEF 20 · SPD 11</span>
+                            <span class="ss-enemy-chip-stats">900 HP · MAG 25 · DEF 20 · SPD 11</span>
                         </div>
                     </div>
                     <div class="ss-special-label">Enemy abilities</div>
                     <div class="ss-special-desc">
                         <strong>Reynard:</strong> <strong>Smoke Bomb</strong> — EVA+1 all allies for 1 round &nbsp;·&nbsp;
                         <strong>After You</strong> — Grants Flynn 2 actions this turn + MAG+1 for 1 round &nbsp;·&nbsp;
-                        <strong>Flurry</strong> — POW 25 Dagger, 3–7 random hits &nbsp;·&nbsp;
+                        <strong>Flurry</strong> — POW 55 Dagger, 3–7 random hits &nbsp;·&nbsp;
                         <strong>Flynn:</strong> <strong>Taunt</strong> — Self Taunt 3 rounds &nbsp;·&nbsp;
                         <strong>Magical Breath</strong> — Self MAG+1 &amp; MDEF+1 for 2 rounds &nbsp;·&nbsp;
                         <strong>Dirty Dan</strong> — POW 120 Earth spell, uses lower of target DEF/MDEF
@@ -1292,8 +1292,8 @@
                 { id: 'e3',   name: 'Cult Follower',hp: 180,  maxHp: 180,  spd: 10, icon: '🕯️', ko: false, atk: 6,  def: 6,  mdef: 18, mag: 16, weak: ['Axe'], resist: ['Light'] },
             ],
             dusty_duo: [
-                { id: 'reynard', name: 'Reynard', hp: 500, maxHp: 500, spd: 31, icon: 'assets/Reynard.png', ko: false, atk: 23, mag: 5,  def: 10, mdef: 10, eva: 20, weak: [], resist: ['Dagger', 'Sword', 'Axe'] },
-                { id: 'flynn',   name: 'Flynn',   hp: 800, maxHp: 800, spd: 11, icon: 'assets/Flynn.png', ko: false, atk: 17, mag: 25, def: 20, mdef: 13, eva: 3,  weak: [], resist: ['Fire', 'Thunder', 'Ice'] },
+                { id: 'reynard', name: 'Reynard', hp: 650, maxHp: 650, spd: 31, icon: 'assets/Reynard.png', ko: false, atk: 23, mag: 5,  def: 10, mdef: 10, eva: 20, weak: [], resist: ['Dagger', 'Sword', 'Axe'] },
+                { id: 'flynn',   name: 'Flynn',   hp: 900, maxHp: 900, spd: 11, icon: 'assets/Flynn.png', ko: false, atk: 17, mag: 25, def: 20, mdef: 16, eva: 3,  weak: [], resist: ['Fire', 'Thunder', 'Ice'] },
             ],
         };
         let currentScenario = 'thornbacks';
@@ -1715,7 +1715,7 @@
                     S.enemies.filter(e => !e.ko).forEach(e => applyBuff(e, 'eva', 1, 1, true));
                     setLog(`Reynard tosses a Smoke Bomb! All enemies gain EVA+1 for 1 round!`);
 
-                // Flurry (30%): 3–7 random physical hits, POW 25
+                // Flurry (30%): 3–7 random physical hits, POW 55
                 } else if (roll < 0.75) {
                     const hits = Math.floor(Math.random() * 5) + 3; // 3–7
                     let total = 0;
@@ -1723,7 +1723,7 @@
                         const aliveNow = S.field.filter(c => !c.ko);
                         if (!aliveNow.length) break;
                         const tgt = taunted && !taunted.ko ? taunted : aliveNow[Math.floor(Math.random() * aliveNow.length)];
-                        total += applyEnemyPhysDmg(enemy, tgt.id, 25);
+                        total += applyEnemyPhysDmg(enemy, tgt.id, 55);
                     }
                     setLog(`Reynard uses Flurry — ${hits} hits for ${total} total dmg!`);
 
@@ -2473,7 +2473,16 @@
                 ? 'Reynard and Flynn step out of the dust. This will be trouble.'
                 : 'Wild Thornbacks block your path!';
             setLog(introLog);
-            showMainMenu();
+            // Dispatch the first turn correctly — don't assume a player goes first.
+            // If the fastest unit is an enemy (e.g. Reynard outspeeds the whole party),
+            // showMainMenu() silently returns and the battle freezes. Mirror advanceTurn's logic.
+            const firstUnit = S.queue[0];
+            if (firstUnit && firstUnit.side === 'enemy') {
+                const liveEnemy = S.enemies.find(e => e.id === firstUnit.id);
+                if (liveEnemy && !liveEnemy.ko) setTimeout(() => enemyTurn(firstUnit), 400);
+            } else {
+                showMainMenu();
+            }
         }
 
         // Patch freshState to accept optional field/bench overrides
